@@ -132,6 +132,13 @@ h2 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
 .sub { color: var(--text-secondary); font-size: 13px; margin: 4px 0 0; }
 .muted { color: var(--text-muted); }
 
+.titlerow { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+/* Makes it unmistakable that these are seeded figures, not the real roster. */
+.pill {
+  font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text-secondary); background: var(--hover-wash);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+}
 header.top {
   display: flex; flex-wrap: wrap; gap: 16px;
   align-items: flex-start; justify-content: space-between; margin-bottom: 20px;
@@ -281,7 +288,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>App adoption</h1>
+      <div class="titlerow">
+        <h1>App adoption</h1>
+        <span class="pill" id="data-pill">Sample data</span>
+      </div>
       <p class="sub">Who actually signs in and uses the apps we pay for &mdash; <span id="meta-apps"></span>.</p>
     </div>
     <div class="group">
