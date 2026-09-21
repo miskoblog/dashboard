@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Adoption</title>
+<meta name="description" content="Who actually logs in and uses the apps we pay for.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='9' width='3.2' height='6' rx='1' fill='%232a78d6'/%3E%3Crect x='6.4' y='5' width='3.2' height='10' rx='1' fill='%232a78d6'/%3E%3Crect x='11.8' y='1' width='3.2' height='14' rx='1' fill='%232a78d6'/%3E%3C/svg%3E">
+<style>
+/* ---------------------------------------------------------------- tokens ---
+   Palette slots are referenced by role only, so light/dark swap in one place.
+   Ordinal tier ramp and sequential ramp are validated single-hue blue ramps. */
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --plane: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --hover-wash: rgba(11, 11, 11, 0.04);
+
+  --series-1: #2a78d6;      /* the one categorical slot this dashboard uses */
+  --demph: #898781;         /* context series in an emphasis pair */
+  --track: #cde2fb;         /* meter track: lighter step of the fill's own ramp */
+
+  /* engagement tiers, light -> dark = never -> power (validated --ordinal) */
+  --tier-1: #86b6ef;
+  --tier-2: #5598e7;
+  --tier-3: #2a78d6;
+  --tier-4: #1c5cab;
+  --tier-5: #104281;
+
+  /* sequential ramp for the heatmap (continuous magnitude) */
+  --seq-0: #f0efec;
+  --seq-1: #cde2fb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #256abf;
+  --seq-6: #184f95;
+  --seq-7: #0d366b;
+
+  /* status - fixed, never themed, always shipped with an icon + label */
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-text: #006300;
+
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --hover-wash: rgba(255, 255, 255, 0.06);
+    --series-1: #3987e5;
+    --demph: #898781;
+    --track: #0d366b;
+    --tier-1: #184f95;
+    --tier-2: #256abf;
+    --tier-3: #3987e5;
+    --tier-4: #6da7ec;
+    --tier-5: #9ec5f4;
+    --seq-0: #383835;
+    --seq-1: #0d366b;
+    --seq-2: #104281;
+    --seq-3: #184f95;
+    --seq-4: #256abf;
+    --seq-5: #3987e5;
+    --seq-6: #6da7ec;
+    --seq-7: #9ec5f4;
+    --good-text: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19;
+  --plane: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --hover-wash: rgba(255, 255, 255, 0.06);
+  --series-1: #3987e5;
+  --demph: #898781;
+  --track: #0d366b;
+  --tier-1: #184f95;
+  --tier-2: #256abf;
+  --tier-3: #3987e5;
+  --tier-4: #6da7ec;
+  --tier-5: #9ec5f4;
+  --seq-0: #383835;
+  --seq-1: #0d366b;
+  --seq-2: #104281;
+  --seq-3: #184f95;
+  --seq-4: #256abf;
+  --seq-5: #3987e5;
+  --seq-6: #6da7ec;
+  --seq-7: #9ec5f4;
+  --good-text: #0ca30c;
+}
+
+/* ------------------------------------------------------------------ base --- */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--plane);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 28px 16px 72px; }
+
+h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
+.sub { color: var(--text-secondary); font-size: 13px; margin: 4px 0 0; }
+.muted { color: var(--text-muted); }
+
+header.top {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  align-items: flex-start; justify-content: space-between; margin-bottom: 20px;
+}
+
+/* ---------------------------------------------------------------- filters --- */
+.filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 12px 14px; margin-bottom: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.filters .group { display: flex; align-items: center; gap: 8px; }
+.filters label { font-size: 12px; color: var(--text-secondary); }
+.seg { display: inline-flex; background: var(--plane); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+.seg button {
+  font: inherit; font-size: 12.5px; color: var(--text-secondary);
+  background: none; border: 0; border-radius: 6px; padding: 5px 11px; cursor: pointer;
+}
+.seg button:hover { background: var(--hover-wash); }
+.seg button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+select, .btn {
+  font: inherit; font-size: 12.5px; color: var(--text-primary);
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer;
+}
+select:hover, .btn:hover { background: var(--hover-wash); }
+.spacer { flex: 1 1 auto; }
+
+/* ------------------------------------------------------------------ grid --- */
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+/* the 12-column span belongs to cards in the main grid, not to the hero card */
+.grid > .card { grid-column: span 12; }
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  min-width: 0;
+}
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.card-head .sub { margin-top: 2px; }
+@media (min-width: 860px) {
+  .grid > .card.span-6 { grid-column: span 6; }
+  .grid > .card.span-7 { grid-column: span 7; }
+  .grid > .card.span-5 { grid-column: span 5; }
+  .grid > .card.span-8 { grid-column: span 8; }
+  .grid > .card.span-4 { grid-column: span 4; }
+}
+
+/* ------------------------------------------------------- hero & stat tiles --- */
+.hero-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
+@media (min-width: 860px) { .hero-row { grid-template-columns: minmax(260px, 1fr) 2.1fr; } }
+
+.hero .label { font-size: 12.5px; color: var(--text-secondary); }
+.hero .figure { font-size: 56px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; margin: 6px 0 2px; }
+.hero .note { font-size: 12.5px; color: var(--text-secondary); }
+
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 620px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+.tile {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 13px 14px; min-width: 0;
+}
+.tile .label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.tile .value { font-size: 25px; font-weight: 600; letter-spacing: -0.015em; margin-top: 3px; }
+.tile .note { font-size: 12px; color: var(--text-muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
+
+/* --------------------------------------------------------------- tooltip --- */
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+  transition: opacity .1s ease;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; font-size: 12.5px; line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(0,0,0,.16); max-width: 280px;
+}
+#tip.on { opacity: 1; }
+#tip .t-title { font-weight: 600; margin-bottom: 4px; }
+#tip .t-row { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+#tip .t-key { width: 14px; height: 2px; border-radius: 1px; flex: none; transform: translateY(-3px); }
+#tip .t-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+#tip .t-lab { color: var(--text-secondary); }
+
+/* ---------------------------------------------------------------- legend --- */
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 12px; color: var(--text-secondary); }
+.legend .item { display: flex; align-items: center; gap: 6px; }
+.legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.legend .ln { width: 14px; height: 2px; border-radius: 1px; flex: none; }
+
+/* ----------------------------------------------------------------- table --- */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th {
+  color: var(--text-secondary); font-weight: 600; font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: .04em;
+  position: sticky; top: 0; background: var(--surface-1);
+}
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text-primary); }
+th .arrow { opacity: .5; font-size: 9px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--hover-wash); }
+tfoot td { font-weight: 600; border-bottom: 0; border-top: 1px solid var(--axis); }
+.scroll-y { max-height: 460px; overflow-y: auto; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.ic { width: 12px; height: 12px; flex: none; display: block; }
+
+.empty { color: var(--text-muted); font-size: 13px; padding: 26px 4px; text-align: center; }
+
+/* ------------------------------------------------------------------- svg --- */
+svg { display: block; width: 100%; overflow: visible; }
+svg text { font-family: var(--font); }
+.tick { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axlabel { fill: var(--text-secondary); font-size: 11.5px; }
+.vlabel { fill: var(--text-primary); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gridline { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.baseline { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.hit { fill: transparent; cursor: pointer; outline: none; }
+.hit:focus-visible + .markref, .hit:hover + .markref { opacity: .82; }
+.focusring { fill: none; stroke: var(--text-primary); stroke-width: 2; rx: 3; opacity: 0; }
+.hit:focus-visible ~ .focusring { opacity: 1; }
+.crosshair { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; opacity: 0; }
+
+.hm-cell { stroke: var(--surface-1); stroke-width: 2; }
+.hm-cell.noseat { fill: none; stroke: var(--grid); stroke-width: 1; }
+.hm-grid:focus { outline: none; }
+.hm-cursor { fill: none; stroke: var(--text-primary); stroke-width: 2; rx: 3; opacity: 0; }
+.hm-grid:focus-visible .hm-cursor { opacity: 1; }
+
+.scale { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-secondary); margin-top: 12px; }
+.scale .steps { display: flex; }
+.scale .steps i { width: 20px; height: 10px; display: block; }
+.scale .steps i:first-child { border-radius: 3px 0 0 3px; }
+.scale .steps i:last-child { border-radius: 0 3px 3px 0; }
+
+.note-line { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+footer.foot { margin-top: 26px; font-size: 12px; color: var(--text-muted); }
+.err { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--hover-wash); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>App adoption</h1>
+      <p class="sub">Who actually signs in and uses the apps we pay for &mdash; <span id="meta-apps"></span>.</p>
+    </div>
+    <div class="group">
+      <button class="btn" id="theme-toggle" type="button" aria-label="Switch colour theme">Theme</button>
+    </div>
+  </header>
+
+  <div id="app" hidden>
+    <div class="filters" role="group" aria-label="Filters">
+      <div class="group">
+        <label for="range">Range</label>
+        <div class="seg" id="range" role="group" aria-label="Date range">
+          <button type="button" data-days="7">7 days</button>
+          <button type="button" data-days="30" aria-pressed="true">30 days</button>
+          <button type="button" data-days="90">90 days</button>
+        </div>
+      </div>
+      <div class="group">
+        <label for="f-team">Team</label>
+        <select id="f-team"><option value="all">All teams</option></select>
+      </div>
+      <div class="group">
+        <label for="f-app">App</label>
+        <select id="f-app"><option value="all">All apps</option></select>
+      </div>
+      <div class="spacer"></div>
+      <span class="muted" id="meta-updated"></span>
+    </div>
+
+    <div class="hero-row">
+      <div class="card hero">
+        <div class="label">Real adoption</div>
+        <div class="figure" id="hero-figure">&mdash;</div>
+        <div class="note" id="hero-note"></div>
+        <div id="hero-spark" style="margin-top:14px"></div>
+        <div class="note-line" id="hero-scope"></div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </div>
+
+    <div class="grid">
+      <section class="card span-7" id="card-adoption">
+        <div class="card-head">
+          <div>
+            <h2>Seats used vs seats paid for</h2>
+            <p class="sub">Filled bar = people active in the range. Track = seats assigned.</p>
+          </div>
+          <div class="seg view-toggle" data-target="adoption">
+            <button type="button" data-view="chart" aria-pressed="true">Chart</button>
+            <button type="button" data-view="table">Table</button>
+          </div>
+        </div>
+        <div id="adoption-body"></div>
+      </section>
+
+      <section class="card span-5" id="card-mix">
+        <div class="card-head">
+          <div>
+            <h2>Engagement mix</h2>
+            <p class="sub">Share of each app&rsquo;s seats by how much they&rsquo;re really used.</p>
+          </div>
+          <div class="seg view-toggle" data-target="mix">
+            <button type="button" data-view="chart" aria-pressed="true">Chart</button>
+            <button type="button" data-view="table">Table</button>
+          </div>
+        </div>
+        <div id="mix-body"></div>
+      </section>
+
+      <section class="card span-12" id="card-trend">
+        <div class="card-head">
+          <div>
+            <h2>Daily active people</h2>
+            <p class="sub">Distinct people with at least one session that day.</p>
+          </div>
+          <div class="seg view-toggle" data-target="trend">
+            <button type="button" data-view="chart" aria-pressed="true">Chart</button>
+            <button type="button" data-view="table">Table</button>
+          </div>
+        </div>
+        <div id="trend-body"></div>
+      </section>
+
+      <section class="card span-12" id="card-heat">
+        <div class="card-head">
+          <div>
+            <h2>Who uses what</h2>
+            <p class="sub">Days active per person, per app. An outlined cell means no seat assigned.</p>
+          </div>
+          <div class="seg view-toggle" data-target="heat">
+            <button type="button" data-view="chart" aria-pressed="true">Grid</button>
+            <button type="button" data-view="table">Table</button>
+          </div>
+        </div>
+        <div id="heat-body"></div>
+      </section>
+
+      <section class="card span-7" id="card-reclaim">
+        <div class="card-head">
+          <div>
+            <h2>Seats worth reclaiming</h2>
+            <p class="sub">Never signed in, gone quiet, or signing in without doing anything.</p>
+          </div>
+        </div>
+        <div id="reclaim-body"></div>
+      </section>
+
+      <section class="card span-5" id="card-people">
+        <div class="card-head">
+          <div>
+            <h2>People</h2>
+            <p class="sub">Last sign-in across any app, and how many seats they really use.</p>
+          </div>
+        </div>
+        <div id="people-body"></div>
+      </section>
+    </div>
+
+    <footer class="foot" id="foot"></footer>
+  </div>
+
+  <div id="loading" class="err">Loading usage data&hellip;</div>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script src="data/usage.js" onerror="window.__usageScriptFailed=true"></script>
+<script>
+'use strict';
+
+/* =====================================================================
+   1. State, helpers
+   ===================================================================== */
+
+const state = { days: 30, team: 'all', app: 'all' };
+const views = { adoption: 'chart', mix: 'chart', trend: 'chart', heat: 'chart' };
+let DATA = null, IX = null;
+
+const $ = (sel, root) => (root || document).querySelector(sel);
+const el = (tag, attrs, kids) => {
+  const n = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === 'class') n.className = attrs[k];
+    else if (k === 'text') n.textContent = attrs[k];   // untrusted labels never via innerHTML
+    else if (k === 'style') n.setAttribute('style', attrs[k]);
+    else if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  }
+  (kids || []).forEach((c) => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return n;
+};
+const svgEl = (tag, attrs, kids) => {
+  const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  (kids || []).forEach((c) => n.appendChild(c));
+  return n;
+};
+const pct = (n) => (n * 100).toFixed(n >= 0.995 ? 0 : 0) + '%';
+const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+const addDays = (iso, k) => {
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + k);
+  return d.toISOString().slice(0, 10);
+};
+const isWeekendISO = (iso) => {
+  const w = new Date(iso + 'T00:00:00Z').getUTCDay();
+  return w === 0 || w === 6;
+};
+const fmtDate = (iso) =>
+  new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const daysAgo = (iso, from) => Math.round((Date.parse(from) - Date.parse(iso)) / 86400000);
+
+/* =====================================================================
+   2. Engagement model - the definitions behind every number on screen
+   =====================================================================
+
+   A "seat" is one (person, app) assignment: a licence someone is paying for.
+   Each seat lands in exactly one tier for the selected range:
+
+     never    no sign-in ever recorded, in any range
+     lapsed   signed in at some point, but nothing inside this range
+     light    active, but on few of the working days available to them
+     regular  active on a quarter to six-tenths of those days
+     power    active on most working days
+
+   Separately, a seat is flagged LOGIN-ONLY when sessions happen but nothing
+   happens inside them: short sessions and almost no actions. That is the
+   difference between "logged in" and "used", so it is a flag on top of the
+   tier rather than a tier of its own - a login-only seat is still counted
+   wherever its activity rate puts it. */
+
+const TIERS = [
+  { id: 'never',   label: 'Never signed in', varName: '--tier-1' },
+  { id: 'lapsed',  label: 'Gone quiet',      varName: '--tier-2' },
+  { id: 'light',   label: 'Light',           varName: '--tier-3' },
+  { id: 'regular', label: 'Regular',         varName: '--tier-4' },
+  { id: 'power',   label: 'Power',           varName: '--tier-5' },
+];
+const TIER_BY_ID = Object.fromEntries(TIERS.map((t) => [t.id, t]));
+const ACTIVE_TIERS = new Set(['light', 'regular', 'power']);
+
+/* A seat is only judged over the working days it actually had: someone who
+   joined last week is not "dormant for 90 days". */
+function workingDaysBetween(startISO, endISO) {
+  if (startISO > endISO) return 0;
+  let n = 0;
+  for (let d = startISO; d <= endISO; d = addDays(d, 1)) if (!isWeekendISO(d)) n++;
+  return n;
+}
+
+const LOGIN_ONLY_MAX_MINUTES = 5;   // average minutes per sign-in
+const LOGIN_ONLY_MAX_ACTIONS = 3;   // average meaningful actions per sign-in
+
+function tierFor(seat) {
+  if (seat.activeDays === 0) return seat.everActive ? 'lapsed' : 'never';
+  const rate = seat.activeDays / Math.max(1, seat.availableDays);
+  if (rate >= 0.6) return 'power';
+  if (rate >= 0.25) return 'regular';
+  return 'light';
+}
+
+/* =====================================================================
+   3. Index the raw data once
+   ===================================================================== */
+
+function buildIndex(data) {
+  const appById = new Map(data.apps.map((a) => [a.id, a]));
+  const personById = new Map(data.people.map((p) => [p.id, p]));
+  const key = (pid, aid) => pid + '|' + aid;
+
+  const seats = data.assignments.map((a) => ({
+    key: key(a.personId, a.appId),
+    personId: a.personId,
+    appId: a.appId,
+    assignedAt: a.assignedAt,
+    person: personById.get(a.personId),
+    app: appById.get(a.appId),
+    events: [],
+  }));
+  const seatByKey = new Map(seats.map((s) => [s.key, s]));
+
+  for (const ev of data.events) {
+    const s = seatByKey.get(key(ev.personId, ev.appId));
+    if (s) s.events.push(ev);   // events without a seat are ignored on purpose
+  }
+  for (const s of seats) {
+    s.events.sort((x, y) => (x.date < y.date ? -1 : 1));
+    s.everActive = s.events.length > 0;
+    s.firstActive = s.everActive ? s.events[0].date : null;
+    s.lastActiveAll = s.everActive ? s.events[s.events.length - 1].date : null;
+    // Seat clock starts the later of "app assigned" and "person joined".
+    s.startedAt = s.assignedAt > s.person.joinedAt ? s.assignedAt : s.person.joinedAt;
+  }
+
+  const dates = [];
+  for (let d = data.windowStart; d <= data.windowEnd; d = addDays(d, 1)) dates.push(d);
+
+  const teams = Array.from(new Set(data.people.map((p) => p.team))).sort();
+  return { appById, personById, seats, dates, teams };
+}
+
+/* =====================================================================
+   4. Compute everything for the current filter slice
+   ===================================================================== */
+
+function computeSlice() {
+  const endISO = DATA.windowEnd;
+  const startISO = addDays(endISO, -(state.days - 1));
+
+  const seats = IX.seats.filter(
+    (s) => (state.team === 'all' || s.person.team === state.team) &&
+           (state.app === 'all' || s.appId === state.app)
+  );
+
+  const rows = seats.map((s) => {
+    let activeDays = 0, logins = 0, minutes = 0, actions = 0, lastActive = null;
+    for (const ev of s.events) {
+      if (ev.date < startISO || ev.date > endISO) continue;
+      activeDays++; logins += ev.logins; minutes += ev.activeMinutes; actions += ev.actions;
+      if (!lastActive || ev.date > lastActive) lastActive = ev.date;
+    }
+    const seatStart = s.startedAt > startISO ? s.startedAt : startISO;
+    const r = {
+      seat: s, person: s.person, app: s.app,
+      activeDays, logins, minutes, actions,
+      lastActive, lastActiveAll: s.lastActiveAll, everActive: s.everActive,
+      availableDays: workingDaysBetween(seatStart, endISO),
+      newSeat: s.startedAt > startISO,
+    };
+    r.minutesPerLogin = logins ? minutes / logins : 0;
+    r.actionsPerLogin = logins ? actions / logins : 0;
+    r.tier = tierFor(r);
+    r.loginOnly =
+      r.logins >= 2 &&
+      r.minutesPerLogin < LOGIN_ONLY_MAX_MINUTES &&
+      r.actionsPerLogin < LOGIN_ONLY_MAX_ACTIONS;
+    r.active = ACTIVE_TIERS.has(r.tier);
+    r.costMonthly = s.app.seatCostMonthly;
+    return r;
+  });
+
+  /* --- per app -------------------------------------------------------- */
+  const apps = DATA.apps
+    .filter((a) => state.app === 'all' || a.id === state.app)
+    .map((a) => {
+      const mine = rows.filter((r) => r.app.id === a.id);
+      const counts = Object.fromEntries(TIERS.map((t) => [t.id, 0]));
+      mine.forEach((r) => counts[r.tier]++);
+      const activeSeats = mine.filter((r) => r.active).length;
+      return {
+        app: a, rows: mine, seats: mine.length, activeSeats, counts,
+        loginOnly: mine.filter((r) => r.loginOnly).length,
+        adoption: mine.length ? activeSeats / mine.length : 0,
+        wasteMonthly: mine.filter((r) => !r.active).length * a.seatCostMonthly,
+        spendMonthly: mine.length * a.seatCostMonthly,
+      };
+    })
+    .filter((x) => x.seats > 0);
+
+  /* --- per person ----------------------------------------------------- */
+  const byPerson = new Map();
+  for (const r of rows) {
+    let p = byPerson.get(r.person.id);
+    if (!p) byPerson.set(r.person.id, (p = { person: r.person, rows: [], lastActive: null }));
+    p.rows.push(r);
+    if (r.lastActive && (!p.lastActive || r.lastActive > p.lastActive)) p.lastActive = r.lastActive;
+  }
+  const people = Array.from(byPerson.values()).map((p) => ({
+    ...p,
+    seats: p.rows.length,
+    activeSeats: p.rows.filter((r) => r.active).length,
+    loginOnly: p.rows.filter((r) => r.loginOnly).length,
+    neverSeats: p.rows.filter((r) => r.tier === 'never').length,
+    minutes: p.rows.reduce((n, r) => n + r.minutes, 0),
+    costMonthly: p.rows.reduce((n, r) => n + r.costMonthly, 0),
+    wasteMonthly: p.rows.filter((r) => !r.active).reduce((n, r) => n + r.costMonthly, 0),
+  }));
+
+  /* --- daily series --------------------------------------------------- */
+  const dates = [];
+  for (let d = startISO; d <= endISO; d = addDays(d, 1)) dates.push(d);
+  const dayIdx = new Map(dates.map((d, i) => [d, i]));
+  const activeByDay = dates.map(() => new Set());
+  for (const r of rows) {
+    for (const ev of r.seat.events) {
+      const i = dayIdx.get(ev.date);
+      if (i !== undefined) activeByDay[i].add(ev.personId);
+    }
+  }
+  const series = dates.map((d, i) => ({ date: d, value: activeByDay[i].size }));
+  // 7-day trailing mean - the line that carries the story; the raw daily
+  // series stays as context behind it.
+  const smooth = series.map((_, i) => {
+    const from = Math.max(0, i - 6);
+    const win = series.slice(from, i + 1);
+    return { date: series[i].date, value: win.reduce((n, p) => n + p.value, 0) / win.length };
+  });
+
+  /* --- headline numbers ----------------------------------------------- */
+  const totalSeats = rows.length;
+  const activeSeats = rows.filter((r) => r.active).length;
+  const neverSeats = rows.filter((r) => r.tier === 'never');
+  const lapsedSeats = rows.filter((r) => r.tier === 'lapsed');
+  const loginOnlySeats = rows.filter((r) => r.loginOnly);
+  const headcount = people.length;
+  const peopleSignedIn = people.filter((p) => p.lastActive).length;
+
+  const mau = new Set();
+  for (const r of rows) for (const ev of r.seat.events) {
+    if (ev.date >= startISO && ev.date <= endISO) mau.add(ev.personId);
+  }
+  const avgDau = series.length ? series.reduce((n, p) => n + p.value, 0) / series.length : 0;
+
+  return {
+    startISO, endISO, rows, apps, people, series, smooth, dates,
+    totalSeats, activeSeats, neverSeats, lapsedSeats, loginOnlySeats,
+    headcount, peopleSignedIn,
+    adoption: totalSeats ? activeSeats / totalSeats : 0,
+    spendMonthly: rows.reduce((n, r) => n + r.costMonthly, 0),
+    wasteMonthly: rows.filter((r) => !r.active).reduce((n, r) => n + r.costMonthly, 0),
+    loginOnlyMonthly: loginOnlySeats.reduce((n, r) => n + r.costMonthly, 0),
+    stickiness: mau.size ? avgDau / mau.size : 0,
+    avgDau, mau: mau.size,
+  };
+}
+
+/* =====================================================================
+   5. Tooltip (shared by every mark; keyboard focus shows the same thing)
+   ===================================================================== */
+
+const tipEl = () => document.getElementById('tip');
+
+function showTip(evtOrRect, build) {
+  const t = tipEl();
+  t.textContent = '';
+  t.appendChild(build());
+  t.classList.add('on');
+  const r = t.getBoundingClientRect();
+  let x, y;
+  if (evtOrRect && typeof evtOrRect.clientX === 'number') {
+    x = evtOrRect.clientX + 14; y = evtOrRect.clientY + 16;
+  } else {
+    x = evtOrRect.left + evtOrRect.width / 2 - r.width / 2; y = evtOrRect.bottom + 8;
+  }
+  t.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
+  t.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+}
+function hideTip() {
+  const t = tipEl();
+  t.classList.remove('on');
+  t.textContent = '';   // keep the live region quiet while nothing is hovered
+}
+/* Values lead, labels follow. */
+function tipBox(title, rows, foot) {
+  const box = el('div', {}, [el('div', { class: 't-title', text: title })]);
+  rows.forEach(([label, value, color]) => {
+    const r = el('div', { class: 't-row' });
+    if (color) r.appendChild(el('span', { class: 't-key', style: 'background:' + color }));
+    r.appendChild(el('span', { class: 't-val', text: value }));
+    r.appendChild(el('span', { class: 't-lab', text: label }));
+    box.appendChild(r);
+  });
+  if (foot) box.appendChild(el('div', { class: 't-lab', style: 'margin-top:5px', text: foot }));
+  return box;
+}
+/* Wire a transparent hit rect so hover and focus behave identically. */
+function wireMark(hit, build) {
+  hit.addEventListener('pointermove', (e) => showTip(e, build));
+  hit.addEventListener('pointerenter', (e) => showTip(e, build));
+  hit.addEventListener('pointerleave', hideTip);
+  hit.addEventListener('focus', () => showTip(hit.getBoundingClientRect(), build));
+  hit.addEventListener('blur', hideTip);
+}
+
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* A bar whose data-end is rounded and whose baseline end stays square. */
+function barPath(x, y, w, h, r, dir) {
+  const rr = Math.max(0, Math.min(r, w, h / 2));
+  if (w <= 0.5) return `M${x},${y}h${Math.max(w, 0.5)}v${h}h${-Math.max(w, 0.5)}z`;
+  if (dir === 'right') {
+    return `M${x},${y}h${w - rr}a${rr},${rr} 0 0 1 ${rr},${rr}v${h - 2 * rr}a${rr},${rr} 0 0 1 ${-rr},${rr}h${-(w - rr)}z`;
+  }
+  return `M${x},${y + rr}a${rr},${rr} 0 0 1 ${rr},${-rr}h${w - 2 * rr}a${rr},${rr} 0 0 1 ${rr},${rr}v${h - rr}h${-w}z`;
+}
+
+const BAR_H = 18;          /* <= 24px: never fill the band */
+const ROW_H = 30;
+const GAP = 2;             /* the surface gap, one consistent width */
+
+/* =====================================================================
+   6. Chart: seats used vs seats paid for (a meter per app)
+   ===================================================================== */
+
+function renderAdoption(slice, host, width) {
+  if (views.adoption === 'table') {
+    return host.appendChild(makeTable(
+      [
+        { key: 'name', label: 'App' },
+        { key: 'seats', label: 'Seats', num: true },
+        { key: 'activeSeats', label: 'Really using', num: true },
+        { key: 'adoption', label: 'Adoption', num: true, fmt: (v) => pct(v) },
+        { key: 'wasteMonthly', label: 'Idle spend / mo', num: true, fmt: money },
+      ],
+      slice.apps.map((a) => ({ ...a, name: a.app.name })),
+      { sort: 'adoption', dir: 1 }
+    ));
+  }
+
+  const rows = slice.apps.slice().sort((a, b) => b.adoption - a.adoption);
+  if (!rows.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
+
+  const labelW = 92, valueW = 96, padR = 6;
+  const plotW = Math.max(120, width - labelW - valueW - padR);
+  const maxSeats = Math.max(...rows.map((r) => r.seats), 1);
+  const x = (v) => (v / maxSeats) * plotW;
+  const h = rows.length * ROW_H + 26;
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
+    'aria-label': 'Seats assigned and seats actually used, per app' });
+
+  // recessive gridlines at clean seat counts
+  const step = maxSeats <= 12 ? 4 : maxSeats <= 30 ? 10 : 20;
+  for (let v = 0; v <= maxSeats; v += step) {
+    svg.appendChild(svgEl('line', { class: 'gridline', x1: labelW + x(v), x2: labelW + x(v), y1: 0, y2: rows.length * ROW_H }));
+    svg.appendChild(svgEl('text', { class: 'tick', x: labelW + x(v), y: rows.length * ROW_H + 16, 'text-anchor': 'middle' },
+      [document.createTextNode(String(v))]));
+  }
+  svg.appendChild(svgEl('line', { class: 'baseline', x1: labelW, x2: labelW, y1: 0, y2: rows.length * ROW_H }));
+
+  rows.forEach((r, i) => {
+    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
+    const g = svgEl('g');
+    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' },
+      [document.createTextNode(r.app.name)]));
+    // track = seats paid for; fill = seats really used (same ramp, lighter step)
+    g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.seats), BAR_H, 4, 'right'), fill: 'var(--track)' }));
+    if (r.activeSeats > 0) {
+      g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.activeSeats), BAR_H, 4, 'right'), fill: 'var(--series-1)' }));
+    }
+    g.appendChild(svgEl('text', { class: 'vlabel', x: labelW + x(r.seats) + 10, y: y + BAR_H / 2 + 4 },
+      [document.createTextNode(`${r.activeSeats}/${r.seats} · ${pct(r.adoption)}`)]));
+
+    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW + valueW, height: ROW_H, tabindex: '0',
+      role: 'img', 'aria-label': `${r.app.name}: ${r.activeSeats} of ${r.seats} seats really used` });
+    wireMark(hit, () => tipBox(r.app.name, [
+      ['really using it', String(r.activeSeats), cssVar('--series-1')],
+      ['seats assigned', String(r.seats), cssVar('--track')],
+      ['never signed in', String(r.counts.never)],
+      ['gone quiet', String(r.counts.lapsed)],
+      ['idle spend / mo', money(r.wasteMonthly)],
+    ], `${money(r.app.seatCostMonthly)} per seat · ${r.app.category}`));
+    g.appendChild(hit);
+    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + valueW, height: ROW_H }));
+    svg.appendChild(g);
+  });
+
+  host.appendChild(svg);
+  host.appendChild(legendOf([
+    { label: 'Really using it', color: 'var(--series-1)' },
+    { label: 'Seat assigned', color: 'var(--track)' },
+  ]));
+}
+
+function legendOf(items, kind) {
+  const l = el('div', { class: 'legend' });
+  items.forEach((it) => {
+    l.appendChild(el('span', { class: 'item' }, [
+      el('span', { class: kind === 'line' ? 'ln' : 'sw', style: 'background:' + it.color }),
+      document.createTextNode(it.label),
+    ]));
+  });
+  return l;
+}
+
+/* =====================================================================
+   7. Chart: engagement mix (100% stacked, ordinal ramp)
+   ===================================================================== */
+
+function renderMix(slice, host, width) {
+  if (views.mix === 'table') {
+    return host.appendChild(makeTable(
+      [{ key: 'name', label: 'App' }].concat(
+        TIERS.map((t) => ({ key: t.id, label: t.label, num: true }))
+      ).concat([{ key: 'seats', label: 'Seats', num: true }]),
+      slice.apps.map((a) => ({ name: a.app.name, seats: a.seats, ...a.counts })),
+      { sort: 'seats', dir: 1 }
+    ));
+  }
+
+  const rows = slice.apps.slice().sort((a, b) => b.adoption - a.adoption);
+  if (!rows.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
+
+  const labelW = 86, padR = 8;
+  const plotW = Math.max(100, width - labelW - padR);
+  const h = rows.length * ROW_H;
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
+    'aria-label': 'Share of each app’s seats by engagement tier' });
+
+  rows.forEach((r, i) => {
+    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
+    const g = svgEl('g');
+    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' },
+      [document.createTextNode(r.app.name)]));
+
+    const present = TIERS.filter((t) => r.counts[t.id] > 0);
+    const gaps = Math.max(0, present.length - 1) * GAP;
+    const usable = plotW - gaps;
+    let cx = labelW;
+    present.forEach((t, k) => {
+      const w = (r.counts[t.id] / r.seats) * usable;
+      const first = k === 0, last = k === present.length - 1;
+      // Interior segments get no inline label - the legend and tooltip carry them.
+      const d = last ? barPath(cx, y, w, BAR_H, 4, 'right')
+        : first ? barPath(cx, y, w, BAR_H, 0, 'right')
+        : barPath(cx, y, w, BAR_H, 0, 'right');
+      g.appendChild(svgEl('path', { d, fill: `var(${t.varName})` }));
+      cx += w + GAP;
+    });
+
+    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW, height: ROW_H, tabindex: '0',
+      role: 'img', 'aria-label': `${r.app.name} engagement mix` });
+    wireMark(hit, () => tipBox(
+      r.app.name,
+      TIERS.map((t) => [t.label, `${r.counts[t.id]} (${pct(r.counts[t.id] / r.seats)})`, cssVar(t.varName)]),
+      r.loginOnly ? `${plural(r.loginOnly, 'seat')} sign in but barely do anything` : null
+    ));
+    g.appendChild(hit);
+    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + 4, height: ROW_H }));
+    svg.appendChild(g);
+  });
+
+  host.appendChild(svg);
+  host.appendChild(legendOf(TIERS.map((t) => ({ label: t.label, color: `var(${t.varName})` }))));
+}
+
+/* =====================================================================
+   8. Chart: daily active people (emphasis - trend leads, raw is context)
+   ===================================================================== */
+
+function renderTrend(slice, host, width) {
+  if (views.trend === 'table') {
+    return host.appendChild(makeTable(
+      [
+        { key: 'date', label: 'Date', fmt: fmtDate },
+        { key: 'value', label: 'Active people', num: true },
+        { key: 'avg', label: '7-day average', num: true, fmt: (v) => v.toFixed(1) },
+      ],
+      slice.series.map((p, i) => ({ date: p.date, value: p.value, avg: slice.smooth[i].value })),
+      { sort: 'date', dir: 1, scroll: true }
+    ));
+  }
+  if (!slice.series.length) return host.appendChild(el('p', { class: 'empty', text: 'No activity in range.' }));
+
+  const padL = 34, padR = 44, padT = 10, padB = 26, plotH = 190;
+  const plotW = Math.max(120, width - padL - padR);
+  const h = plotH + padT + padB;
+  const n = slice.series.length;
+  const maxY = Math.max(slice.headcount, ...slice.series.map((p) => p.value), 1);
+  const niceMax = Math.ceil(maxY / 5) * 5 || 5;
+  const X = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const Y = (v) => padT + plotH - (v / niceMax) * plotH;
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
+    'aria-label': 'Daily active people over the selected range' });
+
+  for (let k = 0; k <= 4; k++) {
+    const v = (niceMax / 4) * k;
+    svg.appendChild(svgEl('line', { class: 'gridline', x1: padL, x2: padL + plotW, y1: Y(v), y2: Y(v) }));
+    svg.appendChild(svgEl('text', { class: 'tick', x: padL - 8, y: Y(v) + 4, 'text-anchor': 'end' },
+      [document.createTextNode(String(Math.round(v)))]));
+  }
+  svg.appendChild(svgEl('line', { class: 'baseline', x1: padL, x2: padL + plotW, y1: Y(0), y2: Y(0) }));
+
+  const tickEvery = Math.max(1, Math.round(n / 7));
+  const ticks = [];
+  for (let i = 0; i < n - 1; i += tickEvery) ticks.push(i);
+  // drop a tick that would collide with the always-present final date
+  while (ticks.length && n - 1 - ticks[ticks.length - 1] < tickEvery * 0.7) ticks.pop();
+  ticks.push(n - 1);
+  ticks.forEach((i) => {
+    svg.appendChild(svgEl('text', { class: 'tick', x: X(i), y: h - 8, 'text-anchor': i === n - 1 ? 'end' : 'middle' },
+      [document.createTextNode(fmtDate(slice.series[i].date))]));
+  });
+
+  const line = (pts, accessor) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(accessor(p)).toFixed(1)}`).join('');
+  const raw = line(slice.series, (p) => p.value);
+  svg.appendChild(svgEl('path', { d: raw, fill: 'none', stroke: 'var(--demph)', 'stroke-width': 2,
+    'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: '0.5' }));
+  svg.appendChild(svgEl('path', { d: line(slice.smooth, (p) => p.value), fill: 'none', stroke: 'var(--series-1)',
+    'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+  // end marker + the one direct label
+  const lastAvg = slice.smooth[n - 1].value;
+  svg.appendChild(svgEl('circle', { cx: X(n - 1), cy: Y(lastAvg), r: 4.5, fill: 'var(--series-1)',
+    stroke: 'var(--surface-1)', 'stroke-width': 2 }));
+  svg.appendChild(svgEl('text', { class: 'vlabel', x: X(n - 1) + 9, y: Y(lastAvg) + 4 },
+    [document.createTextNode(lastAvg.toFixed(0))]));
+
+  const cross = svgEl('line', { class: 'crosshair', y1: padT, y2: padT + plotH });
+  svg.appendChild(cross);
+  const cursor = svgEl('circle', { r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface-1)', 'stroke-width': 2, opacity: 0 });
+  svg.appendChild(cursor);
+
+  // The crosshair finds the X: readers aim at a date, never at a 2px line.
+  const surface = svgEl('rect', { class: 'hit', x: padL, y: padT, width: plotW, height: plotH, tabindex: '0',
+    role: 'application', 'aria-label': 'Daily active people; use arrow keys to step through days' });
+  let focusI = n - 1;
+  const place = (i, evt) => {
+    focusI = Math.max(0, Math.min(n - 1, i));
+    const p = slice.series[focusI];
+    cross.setAttribute('x1', X(focusI)); cross.setAttribute('x2', X(focusI)); cross.setAttribute('opacity', 1);
+    cursor.setAttribute('cx', X(focusI)); cursor.setAttribute('cy', Y(slice.smooth[focusI].value)); cursor.setAttribute('opacity', 1);
+    const anchor = evt || { left: X(focusI) + svg.getBoundingClientRect().left - 8, width: 16,
+      bottom: Y(p.value) + svg.getBoundingClientRect().top };
+    showTip(anchor, () => tipBox(fmtDate(p.date), [
+      ['active people', String(p.value), cssVar('--demph')],
+      ['7-day average', slice.smooth[focusI].value.toFixed(1), cssVar('--series-1')],
+    ], isWeekendISO(p.date) ? 'Weekend' : null));
+  };
+  const clear = () => { cross.setAttribute('opacity', 0); cursor.setAttribute('opacity', 0); hideTip(); };
+  surface.addEventListener('pointermove', (e) => {
+    const r = svg.getBoundingClientRect();
+    const rel = ((e.clientX - r.left) / r.width) * width;
+    place(Math.round(((rel - padL) / plotW) * (n - 1)), e);
+  });
+  surface.addEventListener('pointerleave', clear);
+  surface.addEventListener('focus', () => place(focusI));
+  surface.addEventListener('blur', clear);
+  surface.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { place(focusI + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { place(focusI - 1); e.preventDefault(); }
+  });
+  svg.appendChild(surface);
+
+  host.appendChild(svg);
+  host.appendChild(legendOf([
+    { label: '7-day average', color: 'var(--series-1)' },
+    { label: 'Active that day', color: 'var(--demph)' },
+  ], 'line'));
+}
+
+/* =====================================================================
+   9. Chart: who uses what (person x app heatmap)
+   ===================================================================== */
+
+const SEQ_STOPS = [0.10, 0.20, 0.35, 0.50, 0.65, 0.80];
+function heatVar(row) {
+  if (row.activeDays === 0) return '--seq-0';
+  const ratio = row.activeDays / Math.max(1, row.availableDays);
+  let k = 1;
+  for (const s of SEQ_STOPS) { if (ratio < s) break; k++; }
+  return '--seq-' + Math.min(k, 7);
+}
+
+function renderHeat(slice, host, width) {
+  const apps = slice.apps.map((a) => a.app);
+  const people = slice.people.slice().sort((a, b) => b.activeSeats - a.activeSeats || a.person.name.localeCompare(b.person.name));
+  if (!people.length || !apps.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
+
+  if (views.heat === 'table') {
+    return host.appendChild(makeTable(
+      [
+        { key: 'name', label: 'Person' },
+        { key: 'team', label: 'Team' },
+        { key: 'app', label: 'App' },
+        { key: 'activeDays', label: 'Days active', num: true },
+        { key: 'availableDays', label: 'Days available', num: true },
+        { key: 'logins', label: 'Sign-ins', num: true },
+        { key: 'minutes', label: 'Minutes', num: true, fmt: (v) => v.toLocaleString('en-US') },
+      ],
+      slice.rows.map((r) => ({
+        name: r.person.name, team: r.person.team, app: r.app.name,
+        activeDays: r.activeDays, availableDays: r.availableDays, logins: r.logins, minutes: r.minutes,
+      })),
+      { sort: 'activeDays', dir: 1, scroll: true }
+    ));
+  }
+
+  const byKey = new Map(slice.rows.map((r) => [r.person.id + '|' + r.app.id, r]));
+  const labelW = 132, headH = 74, cellH = 16, rowGap = 2;
+  const colW = Math.max(26, Math.min(56, (width - labelW - 8) / apps.length));
+  const gridW = colW * apps.length;
+  const h = headH + people.length * (cellH + rowGap);
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
+    'aria-label': 'Days active per person per app' });
+
+  apps.forEach((a, c) => {
+    const cx = labelW + c * colW + colW / 2;
+    svg.appendChild(svgEl('text', {
+      class: 'axlabel', x: cx, y: headH - 12, transform: `rotate(-45 ${cx} ${headH - 12})`, 'text-anchor': 'start',
+    }, [document.createTextNode(a.name)]));
+  });
+
+  const grid = svgEl('g', { class: 'hm-grid', tabindex: '0', role: 'application',
+    'aria-label': 'Usage grid; arrow keys move between cells' });
+  const cursor = svgEl('rect', { class: 'hm-cursor', width: colW - GAP + 4, height: cellH + 4 });
+
+  people.forEach((p, r) => {
+    const y = headH + r * (cellH + rowGap);
+    grid.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + cellH - 3, 'text-anchor': 'end' },
+      [document.createTextNode(p.person.name)]));
+    apps.forEach((a, c) => {
+      const x = labelW + c * colW;
+      const row = byKey.get(p.person.id + '|' + a.id);
+      const rect = svgEl('rect', {
+        class: 'hm-cell' + (row ? '' : ' noseat'),
+        x: x + GAP / 2, y, width: colW - GAP, height: cellH, rx: 2,
+        fill: row ? `var(${heatVar(row)})` : 'none',
+      });
+      grid.appendChild(rect);
+      if (!row) return;
+      const hit = svgEl('rect', { class: 'hit', x, y: y - 1, width: colW, height: cellH + 2 });
+      wireMark(hit, () => cellTip(row));
+      hit.addEventListener('pointerenter', () => moveCursor(r, c, false));
+      grid.appendChild(hit);
+    });
+  });
+
+  function cellTip(row) {
+    return tipBox(`${row.person.name} · ${row.app.name}`, [
+      ['days active', `${row.activeDays} of ${row.availableDays}`],
+      ['sign-ins', String(row.logins)],
+      ['minutes in app', row.minutes.toLocaleString('en-US')],
+      ['last sign-in', row.lastActive ? fmtDate(row.lastActive) : row.lastActiveAll ? fmtDate(row.lastActiveAll) : 'never'],
+    ], row.loginOnly ? 'Signs in but barely does anything' : TIER_BY_ID[row.tier].label);
+  }
+
+  let fr = 0, fc = 0;
+  function moveCursor(r, c, tip) {
+    fr = Math.max(0, Math.min(people.length - 1, r));
+    fc = Math.max(0, Math.min(apps.length - 1, c));
+    const x = labelW + fc * colW, y = headH + fr * (cellH + rowGap);
+    cursor.setAttribute('x', x + GAP / 2 - 2);
+    cursor.setAttribute('y', y - 2);
+    if (tip) {
+      const row = byKey.get(people[fr].person.id + '|' + apps[fc].id);
+      const b = svg.getBoundingClientRect();
+      const sx = b.width / width;
+      if (row) showTip({ left: b.left + (x + colW / 2) * sx - 8, width: 16, bottom: b.top + (y + cellH) * sx }, () => cellTip(row));
+      else hideTip();
+    }
+  }
+  grid.appendChild(cursor);
+  grid.addEventListener('focus', () => moveCursor(fr, fc, true));
+  grid.addEventListener('blur', hideTip);
+  grid.addEventListener('keydown', (e) => {
+    const map = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] };
+    if (!map[e.key]) return;
+    moveCursor(fr + map[e.key][0], fc + map[e.key][1], true);
+    e.preventDefault();
+  });
+  svg.appendChild(grid);
+  host.appendChild(svg);
+
+  const scale = el('div', { class: 'scale' });
+  scale.appendChild(el('span', {}, [
+    el('span', { class: 'sw', style: 'background:var(--seq-0);width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px' }),
+    document.createTextNode(' no days active'),
+  ]));
+  const steps = el('div', { class: 'steps' });
+  for (let k = 1; k <= 7; k++) steps.appendChild(el('i', { style: `background:var(--seq-${k})` }));
+  scale.appendChild(el('span', { class: 'muted', text: 'less' }));
+  scale.appendChild(steps);
+  scale.appendChild(el('span', { class: 'muted', text: 'more' }));
+  host.appendChild(scale);
+  host.appendChild(el('p', { class: 'note-line',
+    text: 'Shade is share of the working days that person had the seat, not raw day count, so recent joiners are judged fairly.' }));
+}
+
+/* =====================================================================
+   10. Tables
+   ===================================================================== */
+
+const ICONS = {
+  never: (c) => svgEl('svg', { class: 'ic', viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [
+    svgEl('circle', { cx: 6, cy: 6, r: 4.6, fill: 'none', stroke: c, 'stroke-width': 1.6 }),
+    svgEl('line', { x1: 3.1, y1: 8.9, x2: 8.9, y2: 3.1, stroke: c, 'stroke-width': 1.6 }),
+  ]),
+  lapsed: (c) => svgEl('svg', { class: 'ic', viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [
+    svgEl('path', { d: 'M6 1.2 11.2 10.6H0.8Z', fill: 'none', stroke: c, 'stroke-width': 1.5, 'stroke-linejoin': 'round' }),
+    svgEl('line', { x1: 6, y1: 4.6, x2: 6, y2: 7.3, stroke: c, 'stroke-width': 1.5, 'stroke-linecap': 'round' }),
+    svgEl('circle', { cx: 6, cy: 9, r: 0.8, fill: c }),
+  ]),
+  loginonly: (c) => svgEl('svg', { class: 'ic', viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [
+    svgEl('circle', { cx: 6, cy: 6, r: 4.6, fill: 'none', stroke: c, 'stroke-width': 1.6 }),
+    svgEl('path', { d: 'M6 3.2V6l1.9 1.2', fill: 'none', stroke: c, 'stroke-width': 1.5, 'stroke-linecap': 'round' }),
+  ]),
+  ok: (c) => svgEl('svg', { class: 'ic', viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [
+    svgEl('path', { d: 'M2.2 6.3 4.9 9 9.8 3.2', fill: 'none', stroke: c, 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+  ]),
+};
+/* Status always ships as icon + label, never colour alone. */
+function badge(kind, label, colorVar) {
+  const c = cssVar(colorVar);
+  return el('span', { class: 'badge', style: 'color:' + c }, [ICONS[kind](c), el('span', { text: label })]);
+}
+function seatBadge(r) {
+  if (r.tier === 'never') return badge('never', 'Never signed in', '--critical');
+  if (r.tier === 'lapsed') return badge('lapsed', 'Gone quiet', '--warning');
+  if (r.loginOnly) return badge('loginonly', 'Signs in, does nothing', '--serious');
+  return badge('ok', TIER_BY_ID[r.tier].label, '--good');
+}
+
+function makeTable(columns, rows, opts) {
+  opts = opts || {};
+  let sortKey = opts.sort || columns[0].key;
+  let dir = opts.dir === undefined ? 1 : opts.dir;   // 1 = descending
+
+  const wrap = el('div', { class: 'tablewrap' + (opts.scroll ? ' scroll-y' : '') });
+  const table = el('table');
+  const thead = el('thead');
+  const tbody = el('tbody');
+  table.appendChild(thead); table.appendChild(tbody);
+  wrap.appendChild(table);
+  if (opts.footer) table.appendChild(opts.footer);
+
+  function draw() {
+    thead.textContent = ''; tbody.textContent = '';
+    const tr = el('tr');
+    columns.forEach((c) => {
+      const th = el('th', { class: 'sortable' + (c.num ? ' num' : ''), scope: 'col',
+        'aria-sort': sortKey === c.key ? (dir === 1 ? 'descending' : 'ascending') : 'none' }, [c.label]);
+      if (sortKey === c.key) th.appendChild(el('span', { class: 'arrow', text: dir === 1 ? ' ▼' : ' ▲' }));
+      th.addEventListener('click', () => {
+        if (sortKey === c.key) dir = -dir; else { sortKey = c.key; dir = 1; }
+        draw();
+      });
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+
+    const sorted = rows.slice().sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if (x === y) return 0;
+      if (x === null || x === undefined) return 1;
+      if (y === null || y === undefined) return -1;
+      return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * (dir === 1 ? -1 : 1);
+    });
+    if (!sorted.length) {
+      tbody.appendChild(el('tr', {}, [el('td', { colspan: String(columns.length), class: 'empty', text: opts.emptyText || 'Nothing here — good news.' })]));
+      return;
+    }
+    sorted.forEach((row) => {
+      const tr2 = el('tr');
+      columns.forEach((c) => {
+        const td = el('td', { class: c.num ? 'num' : null });
+        if (c.render) td.appendChild(c.render(row));
+        else td.textContent = c.fmt ? c.fmt(row[c.key], row) : (row[c.key] === null || row[c.key] === undefined ? '—' : String(row[c.key]));
+        tr2.appendChild(td);
+      });
+      tbody.appendChild(tr2);
+    });
+  }
+  draw();
+  return wrap;
+}
+
+function renderReclaim(slice, host) {
+  const rows = slice.rows
+    .filter((r) => !r.active || r.loginOnly)
+    .map((r) => ({
+      person: r.person.name, team: r.person.team, app: r.app.name,
+      status: r, statusOrder: r.tier === 'never' ? 3 : r.tier === 'lapsed' ? 2 : 1,
+      last: r.lastActiveAll, cost: r.costMonthly,
+    }));
+  const total = rows.reduce((n, r) => n + r.cost, 0);
+  const foot = el('tfoot', {}, [el('tr', {}, [
+    el('td', { colspan: '5', text: `${plural(rows.length, 'seat')} to review` }),
+    el('td', { class: 'num', text: money(total) + ' / mo' }),
+  ])]);
+  host.appendChild(makeTable(
+    [
+      { key: 'person', label: 'Person' },
+      { key: 'team', label: 'Team' },
+      { key: 'app', label: 'App' },
+      { key: 'statusOrder', label: 'Status', render: (row) => seatBadge(row.status) },
+      { key: 'last', label: 'Last sign-in', fmt: (v) => (v ? `${fmtDate(v)} (${plural(daysAgo(v, slice.endISO), 'day')} ago)` : 'never') },
+      { key: 'cost', label: '$ / mo', num: true, fmt: money },
+    ],
+    rows,
+    { sort: 'cost', dir: 1, scroll: true, footer: foot, emptyText: 'Every seat in this slice is being used.' }
+  ));
+  host.appendChild(el('p', { class: 'note-line',
+    text: 'Reclaiming all of these would save ' + money(total * 12) + ' a year at current list prices.' }));
+}
+
+function renderPeople(slice, host) {
+  const rows = slice.people.map((p) => ({
+    name: p.person.name, team: p.person.team,
+    seats: p.seats, using: p.activeSeats,
+    last: p.lastActive, waste: p.wasteMonthly, flags: p,
+  }));
+  host.appendChild(makeTable(
+    [
+      { key: 'name', label: 'Person' },
+      { key: 'seats', label: 'Seats', num: true },
+      { key: 'using', label: 'Using', num: true },
+      { key: 'last', label: 'Last sign-in', fmt: (v) => (v ? `${plural(daysAgo(v, slice.endISO), 'day')} ago` : 'never') },
+      { key: 'waste', label: 'Idle $ / mo', num: true, fmt: money },
+    ],
+    rows,
+    { sort: 'waste', dir: 1, scroll: true }
+  ));
+}
+
+/* =====================================================================
+   11. Hero + stat tiles
+   ===================================================================== */
+
+function renderHero(slice) {
+  $('#hero-figure').textContent = slice.totalSeats ? pct(slice.adoption) : '—';
+  $('#hero-note').textContent =
+    `${slice.activeSeats} of ${plural(slice.totalSeats, 'seat')} are genuinely in use`;
+  $('#hero-scope').textContent =
+    `Last ${slice.days || state.days} days · ${fmtDate(slice.startISO)} – ${fmtDate(slice.endISO)}`;
+
+  // Compact 100% stacked summary of every seat, on the same ordinal ramp.
+  const host = $('#hero-spark');
+  host.textContent = '';
+  if (!slice.totalSeats) return;
+  const counts = Object.fromEntries(TIERS.map((t) => [t.id, 0]));
+  slice.rows.forEach((r) => counts[r.tier]++);
+  const W = Math.max(180, host.clientWidth || 260), H = 14;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img',
+    'aria-label': 'All seats by engagement tier' });
+  const present = TIERS.filter((t) => counts[t.id] > 0);
+  const usable = W - Math.max(0, present.length - 1) * GAP;
+  let cx = 0;
+  present.forEach((t, k) => {
+    const w = (counts[t.id] / slice.totalSeats) * usable;
+    svg.appendChild(svgEl('path', {
+      d: barPath(cx, 0, w, H, k === present.length - 1 ? 4 : 0, 'right'), fill: `var(${t.varName})`,
+    }));
+    cx += w + GAP;
+  });
+  host.appendChild(svg);
+  host.appendChild(legendOf(present.map((t) => ({ label: `${t.label} ${counts[t.id]}`, color: `var(${t.varName})` }))));
+}
+
+function tile(label, value, note, iconKind, colorVar) {
+  const lab = el('div', { class: 'label' });
+  if (iconKind) lab.appendChild(ICONS[iconKind](cssVar(colorVar)));
+  lab.appendChild(el('span', { text: label }));
+  return el('div', { class: 'tile' }, [
+    lab,
+    el('div', { class: 'value', text: value }),
+    el('div', { class: 'note', text: note }),
+  ]);
+}
+
+function renderTiles(slice) {
+  const host = $('#tiles');
+  host.textContent = '';
+  const never = slice.neverSeats, lapsed = slice.lapsedSeats, lo = slice.loginOnlySeats;
+  const cost = (rows) => money(rows.reduce((n, r) => n + r.costMonthly, 0)) + ' / mo';
+
+  host.appendChild(tile('People who signed in', `${slice.peopleSignedIn} of ${slice.headcount}`,
+    slice.headcount - slice.peopleSignedIn === 0 ? 'everyone showed up' :
+      `${plural(slice.headcount - slice.peopleSignedIn, 'person', 'people')} never appeared`));
+
+  host.appendChild(tile('Never signed in', String(never.length), cost(never), 'never', '--critical'));
+  host.appendChild(tile('Gone quiet', String(lapsed.length), cost(lapsed), 'lapsed', '--warning'));
+  host.appendChild(tile('Signs in, does nothing', String(lo.length), cost(lo), 'loginonly', '--serious'));
+  host.appendChild(tile('Idle spend', money(slice.wasteMonthly) + ' / mo',
+    `of ${money(slice.spendMonthly)} / mo committed`));
+  host.appendChild(tile('Active on a typical day', pct(slice.stickiness),
+    `${Math.round(slice.avgDau)} of the ${slice.mau} who showed up at all`));
+}
+
+/* =====================================================================
+   12. Render orchestration
+   ===================================================================== */
+
+function section(id, fn) {
+  const host = document.getElementById(id);
+  const width = Math.max(280, host.clientWidth || host.parentElement.clientWidth || 600);
+  host.textContent = '';
+  fn(host, width);
+}
+
+let lastSlice = null;
+function render() {
+  const slice = computeSlice();
+  slice.days = state.days;
+  lastSlice = slice;
+  renderHero(slice);
+  renderTiles(slice);
+  section('adoption-body', (h, w) => renderAdoption(slice, h, w));
+  section('mix-body', (h, w) => renderMix(slice, h, w));
+  section('trend-body', (h, w) => renderTrend(slice, h, w));
+  section('heat-body', (h, w) => renderHeat(slice, h, w));
+  section('reclaim-body', (h) => renderReclaim(slice, h));
+  section('people-body', (h) => renderPeople(slice, h));
+
+  $('#foot').textContent =
+    'Definitions — a seat is one person’s licence for one app. "Really using it" means active on at least a quarter of ' +
+    'the working days that seat existed in the range. "Signs in, does nothing" means at least two sign-ins averaging under ' +
+    LOGIN_ONLY_MAX_MINUTES + ' minutes and under ' + LOGIN_ONLY_MAX_ACTIONS + ' actions each. Costs are list price per seat per month.';
+}
+
+/* =====================================================================
+   13. Controls
+   ===================================================================== */
+
+function wireControls() {
+  $('#range').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-days]');
+    if (!b) return;
+    state.days = Number(b.dataset.days);
+    $('#range').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  });
+
+  const teamSel = $('#f-team');
+  IX.teams.forEach((t) => teamSel.appendChild(el('option', { value: t, text: t })));
+  teamSel.addEventListener('change', () => { state.team = teamSel.value; render(); });
+
+  const appSel = $('#f-app');
+  DATA.apps.forEach((a) => appSel.appendChild(el('option', { value: a.id, text: a.name })));
+  appSel.addEventListener('change', () => { state.app = appSel.value; render(); });
+
+  document.querySelectorAll('.view-toggle').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-view]');
+      if (!b) return;
+      views[seg.dataset.target] = b.dataset.view;
+      seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      render();
+    });
+  });
+
+  const root = document.documentElement;
+  const store = {
+    get() { try { return localStorage.getItem('adoption-theme'); } catch (_) { return null; } },
+    set(v) { try { localStorage.setItem('adoption-theme', v); } catch (_) { /* private mode */ } },
+  };
+  const saved = store.get();
+  if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
+  $('#theme-toggle').addEventListener('click', () => {
+    const dark = root.getAttribute('data-theme')
+      ? root.getAttribute('data-theme') === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    store.set(next);
+    render();   // tooltip keys and status icons read resolved custom properties
+  });
+
+  let t = null;
+  addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 140); });
+}
+
+/* =====================================================================
+   14. Boot
+   ===================================================================== */
+
+function start(data) {
+  DATA = data;
+  IX = buildIndex(data);
+  $('#meta-apps').textContent =
+    `${plural(data.apps.length, 'app')} across ${plural(data.people.length, 'person', 'people')}`;
+  $('#meta-updated').textContent = 'Data through ' + fmtDate(data.windowEnd);
+  $('#loading').hidden = true;
+  $('#app').hidden = false;
+  wireControls();
+  render();
+}
+
+function fail(msg) {
+  const box = $('#loading');
+  box.textContent = '';
+  box.appendChild(el('strong', { text: 'Could not load usage data.' }));
+  box.appendChild(el('p', { class: 'sub', text: msg }));
+  const p = el('p', { class: 'sub' });
+  p.appendChild(document.createTextNode('Serve the folder over HTTP, for example '));
+  p.appendChild(el('code', { text: 'python3 -m http.server 8000' }));
+  p.appendChild(document.createTextNode(', then open http://localhost:8000/'));
+  box.appendChild(p);
+}
+
+(function boot() {
+  if (window.USAGE_DATA) return start(window.USAGE_DATA);
+  fetch('data/usage.json')
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(start)
+    .catch((e) => fail(String(e && e.message ? e.message : e)));
+})();
+</script>
+</body>
+</html>
