@@ -1,0 +1,8 @@
+{
+  "name": "adoption-collector",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --no-warnings --test test/collector.test.mjs"
+  }
+}

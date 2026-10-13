@@ -1,0 +1,15 @@
+# Cloudflare Worker config. Replace database_id after `wrangler d1 create`.
+# See collector/README.md for the full step-by-step.
+name = "adoption-collector"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "adoption"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+
+# ADMIN_KEY is a secret, set with:  wrangler secret put ADMIN_KEY
+# EXTRA_ORIGINS is for local testing only and must stay empty in production.
+[vars]
+EXTRA_ORIGINS = ""

@@ -1,3 +1,9 @@
+> **Work in progress.** This repo is being repurposed to track logins and usage of the
+> ten bonus apps (Landed, ClientBridge, Bridgekit, Dispatch, Voiced, Backlot, ClipMath,
+> Bridgekeeper, Chair, Shelfwise). `collector/` and `tracker/` are the new parts.
+> The dashboard in `index.html` and most of what is described below still show the
+> earlier **demo data** about paid software licences and have not been rebuilt yet.
+
 # App adoption dashboard
 
 A single-page dashboard that answers one question: **are people actually signing
