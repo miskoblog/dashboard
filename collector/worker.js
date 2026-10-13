@@ -84,7 +84,11 @@ async function recordEvent(request, env) {
 async function stats(request, env) {
   const auth = request.headers.get('authorization') || '';
   const key = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!env.ADMIN_KEY || !safeEqual(key, env.ADMIN_KEY)) return json({ error: 'unauthorized' }, 401);
+  // The dashboard is served from another origin, so even the 401 must carry the CORS header,
+  // otherwise the browser hides it and a wrong key looks like "could not reach the server".
+  if (!env.ADMIN_KEY || !safeEqual(key, env.ADMIN_KEY)) {
+    return json({ error: 'unauthorized' }, 401, { 'access-control-allow-origin': '*' });
+  }
 
   const url = new URL(request.url);
   const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get('days') || '30', 10) || 30));

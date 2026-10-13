@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>App Adoption</title>
-<meta name="description" content="Who actually logs in and uses the apps we pay for.">
+<title>Bonus App Usage</title>
+<meta name="description" content="Logins and usage across the ten bonus apps.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='9' width='3.2' height='6' rx='1' fill='%232a78d6'/%3E%3Crect x='6.4' y='5' width='3.2' height='10' rx='1' fill='%232a78d6'/%3E%3Crect x='11.8' y='1' width='3.2' height='14' rx='1' fill='%232a78d6'/%3E%3C/svg%3E">
 <style>
 /* ---------------------------------------------------------------- tokens ---
@@ -282,6 +282,32 @@ svg text { font-family: var(--font); }
 footer.foot { margin-top: 26px; font-size: 12px; color: var(--text-muted); }
 .err { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--hover-wash); padding: 1px 5px; border-radius: 4px; }
+
+/* ------------------------------------------------------- connect & banners --- */
+.connect { margin-bottom: 20px; }
+.connect form { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 860px) { .connect form { grid-template-columns: 1.4fr 1fr auto; align-items: end; } }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field label { font-size: 12px; color: var(--text-secondary); }
+input[type="text"], input[type="password"], input[type="url"] {
+  font: inherit; font-size: 13px; color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn.primary { background: var(--series-1); color: #fff; border-color: transparent; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); background: var(--series-1); }
+.remember { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.msg { font-size: 12.5px; margin: 10px 0 0; min-height: 1.2em; }
+.msg.bad { color: var(--critical); }
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between;
+  padding: 10px 14px; margin-bottom: 20px; font-size: 13px; color: var(--text-secondary);
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.banner strong { color: var(--text-primary); }
+.is-loading { opacity: .55; transition: opacity .15s; }
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -289,17 +315,50 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
   <header class="top">
     <div>
       <div class="titlerow">
-        <h1>App adoption</h1>
-        <span class="pill" id="data-pill">Sample data</span>
+        <h1>Bonus app usage</h1>
+        <span class="pill" id="mode-pill">Sample data</span>
       </div>
-      <p class="sub">Who actually signs in and uses the apps we pay for &mdash; <span id="meta-apps"></span>.</p>
+      <p class="sub">Who unlocks the ten bonus apps, who comes back, and what they use.</p>
     </div>
     <div class="group">
       <button class="btn" id="theme-toggle" type="button" aria-label="Switch colour theme">Theme</button>
     </div>
   </header>
 
-  <div id="app" hidden>
+  <section class="card connect" id="connect" aria-labelledby="connect-h">
+    <div class="card-head">
+      <div>
+        <h2 id="connect-h">Connect to your collector</h2>
+        <p class="sub">Paste your Worker address and admin key. Until then you are looking at made-up sample numbers.</p>
+      </div>
+    </div>
+    <form id="connect-form" autocomplete="off">
+      <div class="field">
+        <label for="endpoint">Collector address</label>
+        <input type="url" id="endpoint" placeholder="https://adoption-collector.your-name.workers.dev" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="adminkey">Admin key</label>
+        <input type="password" id="adminkey" placeholder="the ADMIN_KEY you set" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="submit">Connect</button>
+        <button class="btn" type="button" id="use-demo">Use sample data</button>
+      </div>
+    </form>
+    <label class="remember"><input type="checkbox" id="remember"> Remember the key on this device (leave off on a shared computer)</label>
+    <p class="msg" id="connect-msg" role="status" aria-live="polite"></p>
+  </section>
+
+  <div class="banner" id="live-banner" hidden>
+    <span><strong>Live</strong> &middot; <span id="live-host"></span> &middot; <span id="live-updated"></span></span>
+    <span class="actions">
+      <button class="btn" type="button" id="refresh">Refresh</button>
+      <button class="btn" type="button" id="disconnect">Disconnect</button>
+    </span>
+  </div>
+
+  <div id="app">
     <div class="filters" role="group" aria-label="Filters">
       <div class="group">
         <label for="range">Range</label>
@@ -309,63 +368,50 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
           <button type="button" data-days="90">90 days</button>
         </div>
       </div>
-      <div class="group">
-        <label for="f-team">Team</label>
-        <select id="f-team"><option value="all">All teams</option></select>
-      </div>
-      <div class="group">
-        <label for="f-app">App</label>
-        <select id="f-app"><option value="all">All apps</option></select>
-      </div>
       <div class="spacer"></div>
       <span class="muted" id="meta-updated"></span>
     </div>
 
     <div class="hero-row">
       <div class="card hero">
-        <div class="label">Real adoption</div>
+        <div class="label">Unlocks</div>
         <div class="figure" id="hero-figure">&mdash;</div>
         <div class="note" id="hero-note"></div>
-        <div id="hero-spark" style="margin-top:14px"></div>
         <div class="note-line" id="hero-scope"></div>
       </div>
       <div class="tiles" id="tiles"></div>
     </div>
 
     <div class="grid">
-      <section class="card span-7" id="card-adoption">
+      <section class="card span-7" id="card-apps">
         <div class="card-head">
           <div>
-            <h2>Seats used vs seats paid for</h2>
-            <p class="sub">Filled bar = people active in the range. Track = seats assigned.</p>
+            <h2>Visitors and who came back</h2>
+            <p class="sub">Filled bar = came back on another day. Track = all visitors.</p>
           </div>
-          <div class="seg view-toggle" data-target="adoption">
+          <div class="seg view-toggle" data-target="apps">
             <button type="button" data-view="chart" aria-pressed="true">Chart</button>
             <button type="button" data-view="table">Table</button>
           </div>
         </div>
-        <div id="adoption-body"></div>
+        <div id="apps-body"></div>
       </section>
 
-      <section class="card span-5" id="card-mix">
+      <section class="card span-5" id="card-attention">
         <div class="card-head">
           <div>
-            <h2>Engagement mix</h2>
-            <p class="sub">Share of each app&rsquo;s seats by how much they&rsquo;re really used.</p>
-          </div>
-          <div class="seg view-toggle" data-target="mix">
-            <button type="button" data-view="chart" aria-pressed="true">Chart</button>
-            <button type="button" data-view="table">Table</button>
+            <h2>Needs a look</h2>
+            <p class="sub">Apps with no activity, gone quiet, or nobody returning.</p>
           </div>
         </div>
-        <div id="mix-body"></div>
+        <div id="attention-body"></div>
       </section>
 
       <section class="card span-12" id="card-trend">
         <div class="card-head">
           <div>
-            <h2>Daily active people</h2>
-            <p class="sub">Distinct people with at least one session that day.</p>
+            <h2>Daily visitors</h2>
+            <p class="sub">Visitors per day, added up across all ten apps.</p>
           </div>
           <div class="seg view-toggle" data-target="trend">
             <button type="button" data-view="chart" aria-pressed="true">Chart</button>
@@ -375,67 +421,43 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
         <div id="trend-body"></div>
       </section>
 
-      <section class="card span-12" id="card-heat">
+      <section class="card span-12" id="card-features">
         <div class="card-head">
           <div>
-            <h2>Who uses what</h2>
-            <p class="sub">Days active per person, per app. An outlined cell means no seat assigned.</p>
+            <h2>What people use</h2>
+            <p class="sub">Tabs and buttons clicked, most used first.</p>
           </div>
-          <div class="seg view-toggle" data-target="heat">
-            <button type="button" data-view="chart" aria-pressed="true">Grid</button>
-            <button type="button" data-view="table">Table</button>
-          </div>
-        </div>
-        <div id="heat-body"></div>
-      </section>
-
-      <section class="card span-7" id="card-reclaim">
-        <div class="card-head">
-          <div>
-            <h2>Seats worth reclaiming</h2>
-            <p class="sub">Never signed in, gone quiet, or signing in without doing anything.</p>
+          <div class="group">
+            <label for="f-app">App</label>
+            <select id="f-app"></select>
+            <div class="seg view-toggle" data-target="features">
+              <button type="button" data-view="chart" aria-pressed="true">Chart</button>
+              <button type="button" data-view="table">Table</button>
+            </div>
           </div>
         </div>
-        <div id="reclaim-body"></div>
-      </section>
-
-      <section class="card span-5" id="card-people">
-        <div class="card-head">
-          <div>
-            <h2>People</h2>
-            <p class="sub">Last sign-in across any app, and how many seats they really use.</p>
-          </div>
-        </div>
-        <div id="people-body"></div>
+        <div id="features-body"></div>
       </section>
     </div>
 
     <footer class="foot" id="foot"></footer>
   </div>
-
-  <div id="loading" class="err">Loading usage data&hellip;</div>
 </div>
 
 <div id="tip" role="status" aria-live="polite"></div>
-
-<script src="data/usage.js" onerror="window.__usageScriptFailed=true"></script>
 <script>
 'use strict';
 
 /* =====================================================================
-   1. State, helpers
+   1. Helpers
    ===================================================================== */
-
-const state = { days: 30, team: 'all', app: 'all' };
-const views = { adoption: 'chart', mix: 'chart', trend: 'chart', heat: 'chart' };
-let DATA = null, IX = null;
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const el = (tag, attrs, kids) => {
   const n = document.createElement(tag);
   if (attrs) for (const k in attrs) {
     if (k === 'class') n.className = attrs[k];
-    else if (k === 'text') n.textContent = attrs[k];   // untrusted labels never via innerHTML
+    else if (k === 'text') n.textContent = attrs[k];       // collector data never goes through innerHTML
     else if (k === 'style') n.setAttribute('style', attrs[k]);
     else if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
   }
@@ -448,263 +470,224 @@ const svgEl = (tag, attrs, kids) => {
   (kids || []).forEach((c) => n.appendChild(c));
   return n;
 };
-const pct = (n) => (n * 100).toFixed(n >= 0.995 ? 0 : 0) + '%';
-const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const txt = (s) => document.createTextNode(String(s));
+const pct = (n) => Math.round(n * 100) + '%';
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
-const addDays = (iso, k) => {
-  const d = new Date(iso + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + k);
-  return d.toISOString().slice(0, 10);
-};
-const isWeekendISO = (iso) => {
-  const w = new Date(iso + 'T00:00:00Z').getUTCDay();
-  return w === 0 || w === 6;
-};
-const fmtDate = (iso) =>
-  new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const daysAgo = (iso, from) => Math.round((Date.parse(from) - Date.parse(iso)) / 86400000);
-
-/* =====================================================================
-   2. Engagement model - the definitions behind every number on screen
-   =====================================================================
-
-   A "seat" is one (person, app) assignment: a licence someone is paying for.
-   Each seat lands in exactly one tier for the selected range:
-
-     never    no sign-in ever recorded, in any range
-     lapsed   signed in at some point, but nothing inside this range
-     light    active, but on few of the working days available to them
-     regular  active on a quarter to six-tenths of those days
-     power    active on most working days
-
-   Separately, a seat is flagged LOGIN-ONLY when sessions happen but nothing
-   happens inside them: short sessions and almost no actions. That is the
-   difference between "logged in" and "used", so it is a flag on top of the
-   tier rather than a tier of its own - a login-only seat is still counted
-   wherever its activity rate puts it. */
-
-const TIERS = [
-  { id: 'never',   label: 'Never signed in', varName: '--tier-1' },
-  { id: 'lapsed',  label: 'Gone quiet',      varName: '--tier-2' },
-  { id: 'light',   label: 'Light',           varName: '--tier-3' },
-  { id: 'regular', label: 'Regular',         varName: '--tier-4' },
-  { id: 'power',   label: 'Power',           varName: '--tier-5' },
-];
-const TIER_BY_ID = Object.fromEntries(TIERS.map((t) => [t.id, t]));
-const ACTIVE_TIERS = new Set(['light', 'regular', 'power']);
-
-/* A seat is only judged over the working days it actually had: someone who
-   joined last week is not "dormant for 90 days". */
-function workingDaysBetween(startISO, endISO) {
-  if (startISO > endISO) return 0;
-  let n = 0;
-  for (let d = startISO; d <= endISO; d = addDays(d, 1)) if (!isWeekendISO(d)) n++;
-  return n;
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const dayOf = (d) => d.toISOString().slice(0, 10);
+const addDays = (iso, k) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + k); return dayOf(d); };
+const fmtDay = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const isWeekend = (iso) => { const w = new Date(iso + 'T00:00:00Z').getUTCDay(); return w === 0 || w === 6; };
+function ago(iso) {
+  if (!iso) return 'never';
+  const ms = Date.now() - Date.parse(iso);
+  const d = Math.floor(ms / 86400000);
+  if (d >= 1) return plural(d, 'day') + ' ago';
+  const h = Math.floor(ms / 3600000);
+  return h >= 1 ? plural(h, 'hour') + ' ago' : 'just now';
 }
 
-const LOGIN_ONLY_MAX_MINUTES = 5;   // average minutes per sign-in
-const LOGIN_ONLY_MAX_ACTIONS = 3;   // average meaningful actions per sign-in
+/* The ten apps: slug -> display name, the launch it is a bonus for. */
+const APP_META = {
+  landed:       { name: 'Landed',       launch: 'DoneOnCommand' },
+  clientbridge: { name: 'ClientBridge', launch: 'ProsperaBuilder' },
+  bridgekit:    { name: 'Bridgekit',    launch: 'WPSync' },
+  dispatch:     { name: 'Dispatch',     launch: 'Claw AI Army' },
+  voiced:       { name: 'Voiced',       launch: 'MagicFlixAI 2.0' },
+  backlot:      { name: 'Backlot',      launch: 'CinematicSitesAI' },
+  clipmath:     { name: 'ClipMath',     launch: 'ReelRemix' },
+  bridgekeeper: { name: 'Bridgekeeper', launch: 'AgenticAffiliate' },
+  chair:        { name: 'Chair',        launch: 'ClickStaffAI' },
+  shelfwise:    { name: 'Shelfwise',    launch: 'ProductsPilot' },
+};
+const SLUGS = Object.keys(APP_META);
+const nameOf = (slug) => (APP_META[slug] ? APP_META[slug].name : slug);
+const launchOf = (slug) => (APP_META[slug] ? APP_META[slug].launch : '');
 
-function tierFor(seat) {
-  if (seat.activeDays === 0) return seat.everActive ? 'lapsed' : 'never';
-  const rate = seat.activeDays / Math.max(1, seat.availableDays);
-  if (rate >= 0.6) return 'power';
-  if (rate >= 0.25) return 'regular';
-  return 'light';
-}
+const state = { days: 30, mode: 'demo', endpoint: '', key: '', feature: 'all' };
+const views = { apps: 'chart', trend: 'chart', features: 'chart' };
+let DATA = null;
 
 /* =====================================================================
-   3. Index the raw data once
+   2. Sample data - clearly labelled, shaped exactly like /stats
    ===================================================================== */
 
-function buildIndex(data) {
-  const appById = new Map(data.apps.map((a) => [a.id, a]));
-  const personById = new Map(data.people.map((p) => [p.id, p]));
-  const key = (pid, aid) => pid + '|' + aid;
-
-  const seats = data.assignments.map((a) => ({
-    key: key(a.personId, a.appId),
-    personId: a.personId,
-    appId: a.appId,
-    assignedAt: a.assignedAt,
-    person: personById.get(a.personId),
-    app: appById.get(a.appId),
-    events: [],
-  }));
-  const seatByKey = new Map(seats.map((s) => [s.key, s]));
-
-  for (const ev of data.events) {
-    const s = seatByKey.get(key(ev.personId, ev.appId));
-    if (s) s.events.push(ev);   // events without a seat are ignored on purpose
-  }
-  for (const s of seats) {
-    s.events.sort((x, y) => (x.date < y.date ? -1 : 1));
-    s.everActive = s.events.length > 0;
-    s.firstActive = s.everActive ? s.events[0].date : null;
-    s.lastActiveAll = s.everActive ? s.events[s.events.length - 1].date : null;
-    // Seat clock starts the later of "app assigned" and "person joined".
-    s.startedAt = s.assignedAt > s.person.joinedAt ? s.assignedAt : s.person.joinedAt;
-  }
-
-  const dates = [];
-  for (let d = data.windowStart; d <= data.windowEnd; d = addDays(d, 1)) dates.push(d);
-
-  const teams = Array.from(new Set(data.people.map((p) => p.team))).sort();
-  return { appById, personById, seats, dates, teams };
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-/* =====================================================================
-   4. Compute everything for the current filter slice
-   ===================================================================== */
+/* visitors, chance a visitor comes back, days since the app was last used.
+   Deliberately includes the three situations the dashboard exists to flag:
+   an app nobody opened, one that went quiet, one nobody returns to. */
+const DEMO_PROFILE = {
+  landed: [26, 0.55, 0], clientbridge: [18, 0.45, 0], bridgekit: [14, 0.40, 21],
+  dispatch: [22, 0.50, 0], voiced: [9, 0.30, 0], backlot: [12, 0.35, 0],
+  clipmath: [6, 0.20, 0], bridgekeeper: [16, 0.50, 0], chair: [0, 0, 0], shelfwise: [11, 0, 0],
+};
+const DEMO_FEATURES = ['How to Use', 'Generator', 'Tracker', 'Templates', 'Saved'];
 
-function computeSlice() {
-  const endISO = DATA.windowEnd;
-  const startISO = addDays(endISO, -(state.days - 1));
-
-  const seats = IX.seats.filter(
-    (s) => (state.team === 'all' || s.person.team === state.team) &&
-           (state.app === 'all' || s.appId === state.app)
-  );
-
-  const rows = seats.map((s) => {
-    let activeDays = 0, logins = 0, minutes = 0, actions = 0, lastActive = null;
-    for (const ev of s.events) {
-      if (ev.date < startISO || ev.date > endISO) continue;
-      activeDays++; logins += ev.logins; minutes += ev.activeMinutes; actions += ev.actions;
-      if (!lastActive || ev.date > lastActive) lastActive = ev.date;
+let demoCache = null;
+function demoEvents() {
+  if (demoCache) return demoCache;
+  const rnd = mulberry32(11);
+  const today = dayOf(new Date());
+  const events = [];
+  const push = (app, type, vid, back, feature) => {
+    const day = addDays(today, -back);
+    events.push({ app, type, vid, day, feature: feature || null, ts: day + 'T12:00:00.000Z' });
+  };
+  for (const app of SLUGS) {
+    const [visitors, returnChance, lastGap] = DEMO_PROFILE[app];
+    for (let i = 0; i < visitors; i++) {
+      const vid = `demo-${app}-${String(i).padStart(3, '0')}`;
+      const unlockBack = lastGap + Math.floor(rnd() * (89 - lastGap));
+      push(app, 'unlock', vid, unlockBack);
+      const useCount = 1 + Math.floor(rnd() * 5);
+      for (let u = 0; u < useCount; u++) push(app, 'use', vid, unlockBack, DEMO_FEATURES[Math.floor(rnd() * DEMO_FEATURES.length)]);
+      if (rnd() < returnChance && unlockBack > lastGap) {
+        const returns = 1 + Math.floor(rnd() * 3);
+        for (let r = 0; r < returns; r++) {
+          const back = lastGap + Math.floor(rnd() * (unlockBack - lastGap));
+          if (back === unlockBack) continue;
+          push(app, 'open', vid, back);
+          const more = Math.floor(rnd() * 4);
+          for (let u = 0; u < more; u++) push(app, 'use', vid, back, DEMO_FEATURES[Math.floor(rnd() * DEMO_FEATURES.length)]);
+        }
+      }
     }
-    const seatStart = s.startedAt > startISO ? s.startedAt : startISO;
-    const r = {
-      seat: s, person: s.person, app: s.app,
-      activeDays, logins, minutes, actions,
-      lastActive, lastActiveAll: s.lastActiveAll, everActive: s.everActive,
-      availableDays: workingDaysBetween(seatStart, endISO),
-      newSeat: s.startedAt > startISO,
+  }
+  return (demoCache = events);
+}
+
+/* Mirrors the SQL in collector/worker.js so the sample and the live data agree in shape. */
+function aggregate(events, days) {
+  const now = Date.now();
+  const since = dayOf(new Date(now - (days - 1) * 86400000));
+  const since7 = dayOf(new Date(now - 6 * 86400000));
+  const apps = SLUGS.map((app) => {
+    const all = events.filter((e) => e.app === app);
+    const inRange = all.filter((e) => e.day >= since);
+    const daysByVid = new Map();
+    inRange.forEach((e) => { if (!daysByVid.has(e.vid)) daysByVid.set(e.vid, new Set()); daysByVid.get(e.vid).add(e.day); });
+    const feat = new Map();
+    inRange.filter((e) => e.type === 'use' && e.feature).forEach((e) => feat.set(e.feature, (feat.get(e.feature) || 0) + 1));
+    const dailyMap = new Map();
+    inRange.forEach((e) => {
+      const d = dailyMap.get(e.day) || { day: e.day, vids: new Set(), events: 0 };
+      d.vids.add(e.vid); d.events++; dailyMap.set(e.day, d);
+    });
+    const maxTs = (rows) => rows.reduce((m, e) => (m && m > e.ts ? m : e.ts), null);
+    return {
+      app,
+      unlocks: inRange.filter((e) => e.type === 'unlock').length,
+      opens: inRange.filter((e) => e.type === 'open').length,
+      uses: inRange.filter((e) => e.type === 'use').length,
+      visitors: daysByVid.size,
+      returning: [...daysByVid.values()].filter((s) => s.size > 1).length,
+      active7: new Set(inRange.filter((e) => e.day >= since7).map((e) => e.vid)).size,
+      lastSeen: maxTs(inRange),
+      firstSeen: all.length ? all.reduce((m, e) => (m < e.ts ? m : e.ts), all[0].ts) : null,
+      features: [...feat].map(([feature, count]) => ({ feature, count })).sort((a, b) => b.count - a.count),
+      daily: [...dailyMap.values()].sort((a, b) => (a.day < b.day ? -1 : 1)).map((d) => ({ day: d.day, visitors: d.vids.size, events: d.events })),
     };
-    r.minutesPerLogin = logins ? minutes / logins : 0;
-    r.actionsPerLogin = logins ? actions / logins : 0;
-    r.tier = tierFor(r);
-    r.loginOnly =
-      r.logins >= 2 &&
-      r.minutesPerLogin < LOGIN_ONLY_MAX_MINUTES &&
-      r.actionsPerLogin < LOGIN_ONLY_MAX_ACTIONS;
-    r.active = ACTIVE_TIERS.has(r.tier);
-    r.costMonthly = s.app.seatCostMonthly;
-    return r;
   });
+  return { days, since, generatedAt: new Date().toISOString(), apps };
+}
 
-  /* --- per app -------------------------------------------------------- */
-  const apps = DATA.apps
-    .filter((a) => state.app === 'all' || a.id === state.app)
-    .map((a) => {
-      const mine = rows.filter((r) => r.app.id === a.id);
-      const counts = Object.fromEntries(TIERS.map((t) => [t.id, 0]));
-      mine.forEach((r) => counts[r.tier]++);
-      const activeSeats = mine.filter((r) => r.active).length;
-      return {
-        app: a, rows: mine, seats: mine.length, activeSeats, counts,
-        loginOnly: mine.filter((r) => r.loginOnly).length,
-        adoption: mine.length ? activeSeats / mine.length : 0,
-        wasteMonthly: mine.filter((r) => !r.active).length * a.seatCostMonthly,
-        spendMonthly: mine.length * a.seatCostMonthly,
-      };
-    })
-    .filter((x) => x.seats > 0);
+/* =====================================================================
+   3. Live data from the collector
+   ===================================================================== */
 
-  /* --- per person ----------------------------------------------------- */
-  const byPerson = new Map();
-  for (const r of rows) {
-    let p = byPerson.get(r.person.id);
-    if (!p) byPerson.set(r.person.id, (p = { person: r.person, rows: [], lastActive: null }));
-    p.rows.push(r);
-    if (r.lastActive && (!p.lastActive || r.lastActive > p.lastActive)) p.lastActive = r.lastActive;
+function normaliseEndpoint(raw) {
+  let s = String(raw || '').trim().replace(/\/+$/, '');
+  if (!s) throw new Error('Enter the collector address.');
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  let u;
+  try { u = new URL(s); } catch (e) { throw new Error('That does not look like a web address.'); }
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (u.protocol !== 'https:' && !local) throw new Error('The address must start with https://');
+  return u.origin;
+}
+
+async function fetchStats(endpoint, key, days) {
+  let r;
+  try {
+    r = await fetch(endpoint + '/stats?days=' + days, { headers: { authorization: 'Bearer ' + key }, cache: 'no-store' });
+  } catch (e) {
+    throw new Error('Could not reach the collector. Check the address, and that the Worker is deployed.');
   }
-  const people = Array.from(byPerson.values()).map((p) => ({
-    ...p,
-    seats: p.rows.length,
-    activeSeats: p.rows.filter((r) => r.active).length,
-    loginOnly: p.rows.filter((r) => r.loginOnly).length,
-    neverSeats: p.rows.filter((r) => r.tier === 'never').length,
-    minutes: p.rows.reduce((n, r) => n + r.minutes, 0),
-    costMonthly: p.rows.reduce((n, r) => n + r.costMonthly, 0),
-    wasteMonthly: p.rows.filter((r) => !r.active).reduce((n, r) => n + r.costMonthly, 0),
-  }));
+  if (r.status === 401) throw new Error('The collector rejected that admin key.');
+  if (!r.ok) throw new Error('The collector answered with an error (HTTP ' + r.status + ').');
+  let body;
+  try { body = await r.json(); } catch (e) { throw new Error('The collector sent something that is not data. Is the address right?'); }
+  if (!body || !Array.isArray(body.apps)) throw new Error('That address did not return usage data.');
+  return body;
+}
 
-  /* --- daily series --------------------------------------------------- */
-  const dates = [];
-  for (let d = startISO; d <= endISO; d = addDays(d, 1)) dates.push(d);
-  const dayIdx = new Map(dates.map((d, i) => [d, i]));
-  const activeByDay = dates.map(() => new Set());
-  for (const r of rows) {
-    for (const ev of r.seat.events) {
-      const i = dayIdx.get(ev.date);
-      if (i !== undefined) activeByDay[i].add(ev.personId);
-    }
+async function loadData() {
+  if (state.mode === 'live') {
+    DATA = await fetchStats(state.endpoint, state.key, state.days);
+  } else {
+    DATA = aggregate(demoEvents(), state.days);
   }
-  const series = dates.map((d, i) => ({ date: d, value: activeByDay[i].size }));
-  // 7-day trailing mean - the line that carries the story; the raw daily
-  // series stays as context behind it.
-  const smooth = series.map((_, i) => {
-    const from = Math.max(0, i - 6);
-    const win = series.slice(from, i + 1);
-    return { date: series[i].date, value: win.reduce((n, p) => n + p.value, 0) / win.length };
+}
+
+/* =====================================================================
+   4. Interpretation: one status per app, and the headline numbers
+   ===================================================================== */
+
+function statusOf(a) {
+  if (!a.firstSeen) return { id: 'none', label: 'No activity yet', icon: 'never', color: '--critical', order: 0 };
+  if (!a.lastSeen) return { id: 'quiet', label: 'Quiet in this range', icon: 'lapsed', color: '--warning', order: 1 };
+  if ((Date.now() - Date.parse(a.lastSeen)) / 86400000 > 14) return { id: 'stale', label: 'Gone quiet', icon: 'lapsed', color: '--warning', order: 2 };
+  if (a.visitors > 0 && a.returning === 0) return { id: 'noreturn', label: 'Nobody came back', icon: 'loginonly', color: '--serious', order: 3 };
+  return { id: 'ok', label: 'Active', icon: 'ok', color: '--good', order: 4 };
+}
+
+function summarise() {
+  const apps = DATA.apps.map((a) => ({ ...a, status: statusOf(a) }));
+  const sum = (k) => apps.reduce((n, a) => n + (a[k] || 0), 0);
+  const last = apps.reduce((m, a) => (a.lastSeen && (!m || a.lastSeen > m) ? a.lastSeen : m), null);
+  const trend = [];
+  const end = DATA.generatedAt.slice(0, 10);
+  const byDay = new Map();
+  apps.forEach((a) => a.daily.forEach((d) => byDay.set(d.day, (byDay.get(d.day) || 0) + d.visitors)));
+  for (let d = DATA.since; d <= end; d = addDays(d, 1)) trend.push({ date: d, value: byDay.get(d) || 0 });
+  const smooth = trend.map((_, i) => {
+    const win = trend.slice(Math.max(0, i - 6), i + 1);
+    return { date: trend[i].date, value: win.reduce((n, p) => n + p.value, 0) / win.length };
   });
-
-  /* --- headline numbers ----------------------------------------------- */
-  const totalSeats = rows.length;
-  const activeSeats = rows.filter((r) => r.active).length;
-  const neverSeats = rows.filter((r) => r.tier === 'never');
-  const lapsedSeats = rows.filter((r) => r.tier === 'lapsed');
-  const loginOnlySeats = rows.filter((r) => r.loginOnly);
-  const headcount = people.length;
-  const peopleSignedIn = people.filter((p) => p.lastActive).length;
-
-  const mau = new Set();
-  for (const r of rows) for (const ev of r.seat.events) {
-    if (ev.date >= startISO && ev.date <= endISO) mau.add(ev.personId);
-  }
-  const avgDau = series.length ? series.reduce((n, p) => n + p.value, 0) / series.length : 0;
-
   return {
-    startISO, endISO, rows, apps, people, series, smooth, dates,
-    totalSeats, activeSeats, neverSeats, lapsedSeats, loginOnlySeats,
-    headcount, peopleSignedIn,
-    adoption: totalSeats ? activeSeats / totalSeats : 0,
-    spendMonthly: rows.reduce((n, r) => n + r.costMonthly, 0),
-    wasteMonthly: rows.filter((r) => !r.active).reduce((n, r) => n + r.costMonthly, 0),
-    loginOnlyMonthly: loginOnlySeats.reduce((n, r) => n + r.costMonthly, 0),
-    stickiness: mau.size ? avgDau / mau.size : 0,
-    avgDau, mau: mau.size,
+    apps, trend, smooth,
+    unlocks: sum('unlocks'), visitors: sum('visitors'), returning: sum('returning'),
+    active7: sum('active7'), uses: sum('uses'), lastSeen: last,
+    appsActive: apps.filter((a) => a.visitors > 0).length,
+    appsFlagged: apps.filter((a) => a.status.id !== 'ok').length,
   };
 }
 
 /* =====================================================================
-   5. Tooltip (shared by every mark; keyboard focus shows the same thing)
+   5. Tooltip (hover and keyboard focus show the same thing)
    ===================================================================== */
 
-const tipEl = () => document.getElementById('tip');
-
 function showTip(evtOrRect, build) {
-  const t = tipEl();
+  const t = $('#tip');
   t.textContent = '';
   t.appendChild(build());
   t.classList.add('on');
   const r = t.getBoundingClientRect();
   let x, y;
-  if (evtOrRect && typeof evtOrRect.clientX === 'number') {
-    x = evtOrRect.clientX + 14; y = evtOrRect.clientY + 16;
-  } else {
-    x = evtOrRect.left + evtOrRect.width / 2 - r.width / 2; y = evtOrRect.bottom + 8;
-  }
+  if (evtOrRect && typeof evtOrRect.clientX === 'number') { x = evtOrRect.clientX + 14; y = evtOrRect.clientY + 16; }
+  else { x = evtOrRect.left + evtOrRect.width / 2 - r.width / 2; y = evtOrRect.bottom + 8; }
   t.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
   t.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
 }
-function hideTip() {
-  const t = tipEl();
-  t.classList.remove('on');
-  t.textContent = '';   // keep the live region quiet while nothing is hovered
-}
-/* Values lead, labels follow. */
+function hideTip() { const t = $('#tip'); t.classList.remove('on'); t.textContent = ''; }
 function tipBox(title, rows, foot) {
   const box = el('div', {}, [el('div', { class: 't-title', text: title })]);
   rows.forEach(([label, value, color]) => {
@@ -717,7 +700,6 @@ function tipBox(title, rows, foot) {
   if (foot) box.appendChild(el('div', { class: 't-lab', style: 'margin-top:5px', text: foot }));
   return box;
 }
-/* Wire a transparent hit rect so hover and focus behave identically. */
 function wireMark(hit, build) {
   hit.addEventListener('pointermove', (e) => showTip(e, build));
   hit.addEventListener('pointerenter', (e) => showTip(e, build));
@@ -726,404 +708,24 @@ function wireMark(hit, build) {
   hit.addEventListener('blur', hideTip);
 }
 
-const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-
-/* A bar whose data-end is rounded and whose baseline end stays square. */
-function barPath(x, y, w, h, r, dir) {
+const BAR_H = 18, ROW_H = 30;
+function barPath(x, y, w, h, r) {
   const rr = Math.max(0, Math.min(r, w, h / 2));
-  if (w <= 0.5) return `M${x},${y}h${Math.max(w, 0.5)}v${h}h${-Math.max(w, 0.5)}z`;
-  if (dir === 'right') {
-    return `M${x},${y}h${w - rr}a${rr},${rr} 0 0 1 ${rr},${rr}v${h - 2 * rr}a${rr},${rr} 0 0 1 ${-rr},${rr}h${-(w - rr)}z`;
-  }
-  return `M${x},${y + rr}a${rr},${rr} 0 0 1 ${rr},${-rr}h${w - 2 * rr}a${rr},${rr} 0 0 1 ${rr},${rr}v${h - rr}h${-w}z`;
+  const ww = Math.max(w, 0.5);
+  if (w <= 0.5 || rr === 0) return `M${x},${y}h${ww}v${h}h${-ww}z`;
+  return `M${x},${y}h${w - rr}a${rr},${rr} 0 0 1 ${rr},${rr}v${h - 2 * rr}a${rr},${rr} 0 0 1 ${-rr},${rr}h${-(w - rr)}z`;
 }
-
-const BAR_H = 18;          /* <= 24px: never fill the band */
-const ROW_H = 30;
-const GAP = 2;             /* the surface gap, one consistent width */
-
-/* =====================================================================
-   6. Chart: seats used vs seats paid for (a meter per app)
-   ===================================================================== */
-
-function renderAdoption(slice, host, width) {
-  if (views.adoption === 'table') {
-    return host.appendChild(makeTable(
-      [
-        { key: 'name', label: 'App' },
-        { key: 'seats', label: 'Seats', num: true },
-        { key: 'activeSeats', label: 'Really using', num: true },
-        { key: 'adoption', label: 'Adoption', num: true, fmt: (v) => pct(v) },
-        { key: 'wasteMonthly', label: 'Idle spend / mo', num: true, fmt: money },
-      ],
-      slice.apps.map((a) => ({ ...a, name: a.app.name })),
-      { sort: 'adoption', dir: 1 }
-    ));
-  }
-
-  const rows = slice.apps.slice().sort((a, b) => b.adoption - a.adoption);
-  if (!rows.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
-
-  const labelW = 92, valueW = 96, padR = 6;
-  const plotW = Math.max(120, width - labelW - valueW - padR);
-  const maxSeats = Math.max(...rows.map((r) => r.seats), 1);
-  const x = (v) => (v / maxSeats) * plotW;
-  const h = rows.length * ROW_H + 26;
-  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
-    'aria-label': 'Seats assigned and seats actually used, per app' });
-
-  // recessive gridlines at clean seat counts
-  const step = maxSeats <= 12 ? 4 : maxSeats <= 30 ? 10 : 20;
-  for (let v = 0; v <= maxSeats; v += step) {
-    svg.appendChild(svgEl('line', { class: 'gridline', x1: labelW + x(v), x2: labelW + x(v), y1: 0, y2: rows.length * ROW_H }));
-    svg.appendChild(svgEl('text', { class: 'tick', x: labelW + x(v), y: rows.length * ROW_H + 16, 'text-anchor': 'middle' },
-      [document.createTextNode(String(v))]));
-  }
-  svg.appendChild(svgEl('line', { class: 'baseline', x1: labelW, x2: labelW, y1: 0, y2: rows.length * ROW_H }));
-
-  rows.forEach((r, i) => {
-    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
-    const g = svgEl('g');
-    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' },
-      [document.createTextNode(r.app.name)]));
-    // track = seats paid for; fill = seats really used (same ramp, lighter step)
-    g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.seats), BAR_H, 4, 'right'), fill: 'var(--track)' }));
-    if (r.activeSeats > 0) {
-      g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.activeSeats), BAR_H, 4, 'right'), fill: 'var(--series-1)' }));
-    }
-    g.appendChild(svgEl('text', { class: 'vlabel', x: labelW + x(r.seats) + 10, y: y + BAR_H / 2 + 4 },
-      [document.createTextNode(`${r.activeSeats}/${r.seats} · ${pct(r.adoption)}`)]));
-
-    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW + valueW, height: ROW_H, tabindex: '0',
-      role: 'img', 'aria-label': `${r.app.name}: ${r.activeSeats} of ${r.seats} seats really used` });
-    wireMark(hit, () => tipBox(r.app.name, [
-      ['really using it', String(r.activeSeats), cssVar('--series-1')],
-      ['seats assigned', String(r.seats), cssVar('--track')],
-      ['never signed in', String(r.counts.never)],
-      ['gone quiet', String(r.counts.lapsed)],
-      ['idle spend / mo', money(r.wasteMonthly)],
-    ], `${money(r.app.seatCostMonthly)} per seat · ${r.app.category}`));
-    g.appendChild(hit);
-    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + valueW, height: ROW_H }));
-    svg.appendChild(g);
-  });
-
-  host.appendChild(svg);
-  host.appendChild(legendOf([
-    { label: 'Really using it', color: 'var(--series-1)' },
-    { label: 'Seat assigned', color: 'var(--track)' },
-  ]));
-}
-
 function legendOf(items, kind) {
   const l = el('div', { class: 'legend' });
-  items.forEach((it) => {
-    l.appendChild(el('span', { class: 'item' }, [
-      el('span', { class: kind === 'line' ? 'ln' : 'sw', style: 'background:' + it.color }),
-      document.createTextNode(it.label),
-    ]));
-  });
+  items.forEach((it) => l.appendChild(el('span', { class: 'item' }, [
+    el('span', { class: kind === 'line' ? 'ln' : 'sw', style: 'background:' + it.color }), txt(it.label),
+  ])));
   return l;
 }
+const niceStep = (max) => (max <= 5 ? 1 : max <= 10 ? 2 : max <= 25 ? 5 : max <= 50 ? 10 : max <= 100 ? 20 : 50);
 
 /* =====================================================================
-   7. Chart: engagement mix (100% stacked, ordinal ramp)
-   ===================================================================== */
-
-function renderMix(slice, host, width) {
-  if (views.mix === 'table') {
-    return host.appendChild(makeTable(
-      [{ key: 'name', label: 'App' }].concat(
-        TIERS.map((t) => ({ key: t.id, label: t.label, num: true }))
-      ).concat([{ key: 'seats', label: 'Seats', num: true }]),
-      slice.apps.map((a) => ({ name: a.app.name, seats: a.seats, ...a.counts })),
-      { sort: 'seats', dir: 1 }
-    ));
-  }
-
-  const rows = slice.apps.slice().sort((a, b) => b.adoption - a.adoption);
-  if (!rows.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
-
-  const labelW = 86, padR = 8;
-  const plotW = Math.max(100, width - labelW - padR);
-  const h = rows.length * ROW_H;
-  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
-    'aria-label': 'Share of each app’s seats by engagement tier' });
-
-  rows.forEach((r, i) => {
-    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
-    const g = svgEl('g');
-    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' },
-      [document.createTextNode(r.app.name)]));
-
-    const present = TIERS.filter((t) => r.counts[t.id] > 0);
-    const gaps = Math.max(0, present.length - 1) * GAP;
-    const usable = plotW - gaps;
-    let cx = labelW;
-    present.forEach((t, k) => {
-      const w = (r.counts[t.id] / r.seats) * usable;
-      const first = k === 0, last = k === present.length - 1;
-      // Interior segments get no inline label - the legend and tooltip carry them.
-      const d = last ? barPath(cx, y, w, BAR_H, 4, 'right')
-        : first ? barPath(cx, y, w, BAR_H, 0, 'right')
-        : barPath(cx, y, w, BAR_H, 0, 'right');
-      g.appendChild(svgEl('path', { d, fill: `var(${t.varName})` }));
-      cx += w + GAP;
-    });
-
-    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW, height: ROW_H, tabindex: '0',
-      role: 'img', 'aria-label': `${r.app.name} engagement mix` });
-    wireMark(hit, () => tipBox(
-      r.app.name,
-      TIERS.map((t) => [t.label, `${r.counts[t.id]} (${pct(r.counts[t.id] / r.seats)})`, cssVar(t.varName)]),
-      r.loginOnly ? `${plural(r.loginOnly, 'seat')} sign in but barely do anything` : null
-    ));
-    g.appendChild(hit);
-    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + 4, height: ROW_H }));
-    svg.appendChild(g);
-  });
-
-  host.appendChild(svg);
-  host.appendChild(legendOf(TIERS.map((t) => ({ label: t.label, color: `var(${t.varName})` }))));
-}
-
-/* =====================================================================
-   8. Chart: daily active people (emphasis - trend leads, raw is context)
-   ===================================================================== */
-
-function renderTrend(slice, host, width) {
-  if (views.trend === 'table') {
-    return host.appendChild(makeTable(
-      [
-        { key: 'date', label: 'Date', fmt: fmtDate },
-        { key: 'value', label: 'Active people', num: true },
-        { key: 'avg', label: '7-day average', num: true, fmt: (v) => v.toFixed(1) },
-      ],
-      slice.series.map((p, i) => ({ date: p.date, value: p.value, avg: slice.smooth[i].value })),
-      { sort: 'date', dir: 1, scroll: true }
-    ));
-  }
-  if (!slice.series.length) return host.appendChild(el('p', { class: 'empty', text: 'No activity in range.' }));
-
-  const padL = 34, padR = 44, padT = 10, padB = 26, plotH = 190;
-  const plotW = Math.max(120, width - padL - padR);
-  const h = plotH + padT + padB;
-  const n = slice.series.length;
-  const maxY = Math.max(slice.headcount, ...slice.series.map((p) => p.value), 1);
-  const niceMax = Math.ceil(maxY / 5) * 5 || 5;
-  const X = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-  const Y = (v) => padT + plotH - (v / niceMax) * plotH;
-
-  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
-    'aria-label': 'Daily active people over the selected range' });
-
-  for (let k = 0; k <= 4; k++) {
-    const v = (niceMax / 4) * k;
-    svg.appendChild(svgEl('line', { class: 'gridline', x1: padL, x2: padL + plotW, y1: Y(v), y2: Y(v) }));
-    svg.appendChild(svgEl('text', { class: 'tick', x: padL - 8, y: Y(v) + 4, 'text-anchor': 'end' },
-      [document.createTextNode(String(Math.round(v)))]));
-  }
-  svg.appendChild(svgEl('line', { class: 'baseline', x1: padL, x2: padL + plotW, y1: Y(0), y2: Y(0) }));
-
-  const tickEvery = Math.max(1, Math.round(n / 7));
-  const ticks = [];
-  for (let i = 0; i < n - 1; i += tickEvery) ticks.push(i);
-  // drop a tick that would collide with the always-present final date
-  while (ticks.length && n - 1 - ticks[ticks.length - 1] < tickEvery * 0.7) ticks.pop();
-  ticks.push(n - 1);
-  ticks.forEach((i) => {
-    svg.appendChild(svgEl('text', { class: 'tick', x: X(i), y: h - 8, 'text-anchor': i === n - 1 ? 'end' : 'middle' },
-      [document.createTextNode(fmtDate(slice.series[i].date))]));
-  });
-
-  const line = (pts, accessor) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(accessor(p)).toFixed(1)}`).join('');
-  const raw = line(slice.series, (p) => p.value);
-  svg.appendChild(svgEl('path', { d: raw, fill: 'none', stroke: 'var(--demph)', 'stroke-width': 2,
-    'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: '0.5' }));
-  svg.appendChild(svgEl('path', { d: line(slice.smooth, (p) => p.value), fill: 'none', stroke: 'var(--series-1)',
-    'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
-
-  // end marker + the one direct label
-  const lastAvg = slice.smooth[n - 1].value;
-  svg.appendChild(svgEl('circle', { cx: X(n - 1), cy: Y(lastAvg), r: 4.5, fill: 'var(--series-1)',
-    stroke: 'var(--surface-1)', 'stroke-width': 2 }));
-  svg.appendChild(svgEl('text', { class: 'vlabel', x: X(n - 1) + 9, y: Y(lastAvg) + 4 },
-    [document.createTextNode(lastAvg.toFixed(0))]));
-
-  const cross = svgEl('line', { class: 'crosshair', y1: padT, y2: padT + plotH });
-  svg.appendChild(cross);
-  const cursor = svgEl('circle', { r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface-1)', 'stroke-width': 2, opacity: 0 });
-  svg.appendChild(cursor);
-
-  // The crosshair finds the X: readers aim at a date, never at a 2px line.
-  const surface = svgEl('rect', { class: 'hit', x: padL, y: padT, width: plotW, height: plotH, tabindex: '0',
-    role: 'application', 'aria-label': 'Daily active people; use arrow keys to step through days' });
-  let focusI = n - 1;
-  const place = (i, evt) => {
-    focusI = Math.max(0, Math.min(n - 1, i));
-    const p = slice.series[focusI];
-    cross.setAttribute('x1', X(focusI)); cross.setAttribute('x2', X(focusI)); cross.setAttribute('opacity', 1);
-    cursor.setAttribute('cx', X(focusI)); cursor.setAttribute('cy', Y(slice.smooth[focusI].value)); cursor.setAttribute('opacity', 1);
-    const anchor = evt || { left: X(focusI) + svg.getBoundingClientRect().left - 8, width: 16,
-      bottom: Y(p.value) + svg.getBoundingClientRect().top };
-    showTip(anchor, () => tipBox(fmtDate(p.date), [
-      ['active people', String(p.value), cssVar('--demph')],
-      ['7-day average', slice.smooth[focusI].value.toFixed(1), cssVar('--series-1')],
-    ], isWeekendISO(p.date) ? 'Weekend' : null));
-  };
-  const clear = () => { cross.setAttribute('opacity', 0); cursor.setAttribute('opacity', 0); hideTip(); };
-  surface.addEventListener('pointermove', (e) => {
-    const r = svg.getBoundingClientRect();
-    const rel = ((e.clientX - r.left) / r.width) * width;
-    place(Math.round(((rel - padL) / plotW) * (n - 1)), e);
-  });
-  surface.addEventListener('pointerleave', clear);
-  surface.addEventListener('focus', () => place(focusI));
-  surface.addEventListener('blur', clear);
-  surface.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') { place(focusI + 1); e.preventDefault(); }
-    if (e.key === 'ArrowLeft') { place(focusI - 1); e.preventDefault(); }
-  });
-  svg.appendChild(surface);
-
-  host.appendChild(svg);
-  host.appendChild(legendOf([
-    { label: '7-day average', color: 'var(--series-1)' },
-    { label: 'Active that day', color: 'var(--demph)' },
-  ], 'line'));
-}
-
-/* =====================================================================
-   9. Chart: who uses what (person x app heatmap)
-   ===================================================================== */
-
-const SEQ_STOPS = [0.10, 0.20, 0.35, 0.50, 0.65, 0.80];
-function heatVar(row) {
-  if (row.activeDays === 0) return '--seq-0';
-  const ratio = row.activeDays / Math.max(1, row.availableDays);
-  let k = 1;
-  for (const s of SEQ_STOPS) { if (ratio < s) break; k++; }
-  return '--seq-' + Math.min(k, 7);
-}
-
-function renderHeat(slice, host, width) {
-  const apps = slice.apps.map((a) => a.app);
-  const people = slice.people.slice().sort((a, b) => b.activeSeats - a.activeSeats || a.person.name.localeCompare(b.person.name));
-  if (!people.length || !apps.length) return host.appendChild(el('p', { class: 'empty', text: 'No seats match these filters.' }));
-
-  if (views.heat === 'table') {
-    return host.appendChild(makeTable(
-      [
-        { key: 'name', label: 'Person' },
-        { key: 'team', label: 'Team' },
-        { key: 'app', label: 'App' },
-        { key: 'activeDays', label: 'Days active', num: true },
-        { key: 'availableDays', label: 'Days available', num: true },
-        { key: 'logins', label: 'Sign-ins', num: true },
-        { key: 'minutes', label: 'Minutes', num: true, fmt: (v) => v.toLocaleString('en-US') },
-      ],
-      slice.rows.map((r) => ({
-        name: r.person.name, team: r.person.team, app: r.app.name,
-        activeDays: r.activeDays, availableDays: r.availableDays, logins: r.logins, minutes: r.minutes,
-      })),
-      { sort: 'activeDays', dir: 1, scroll: true }
-    ));
-  }
-
-  const byKey = new Map(slice.rows.map((r) => [r.person.id + '|' + r.app.id, r]));
-  const labelW = 132, headH = 74, cellH = 16, rowGap = 2;
-  const colW = Math.max(26, Math.min(56, (width - labelW - 8) / apps.length));
-  const gridW = colW * apps.length;
-  const h = headH + people.length * (cellH + rowGap);
-
-  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group',
-    'aria-label': 'Days active per person per app' });
-
-  apps.forEach((a, c) => {
-    const cx = labelW + c * colW + colW / 2;
-    svg.appendChild(svgEl('text', {
-      class: 'axlabel', x: cx, y: headH - 12, transform: `rotate(-45 ${cx} ${headH - 12})`, 'text-anchor': 'start',
-    }, [document.createTextNode(a.name)]));
-  });
-
-  const grid = svgEl('g', { class: 'hm-grid', tabindex: '0', role: 'application',
-    'aria-label': 'Usage grid; arrow keys move between cells' });
-  const cursor = svgEl('rect', { class: 'hm-cursor', width: colW - GAP + 4, height: cellH + 4 });
-
-  people.forEach((p, r) => {
-    const y = headH + r * (cellH + rowGap);
-    grid.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + cellH - 3, 'text-anchor': 'end' },
-      [document.createTextNode(p.person.name)]));
-    apps.forEach((a, c) => {
-      const x = labelW + c * colW;
-      const row = byKey.get(p.person.id + '|' + a.id);
-      const rect = svgEl('rect', {
-        class: 'hm-cell' + (row ? '' : ' noseat'),
-        x: x + GAP / 2, y, width: colW - GAP, height: cellH, rx: 2,
-        fill: row ? `var(${heatVar(row)})` : 'none',
-      });
-      grid.appendChild(rect);
-      if (!row) return;
-      const hit = svgEl('rect', { class: 'hit', x, y: y - 1, width: colW, height: cellH + 2 });
-      wireMark(hit, () => cellTip(row));
-      hit.addEventListener('pointerenter', () => moveCursor(r, c, false));
-      grid.appendChild(hit);
-    });
-  });
-
-  function cellTip(row) {
-    return tipBox(`${row.person.name} · ${row.app.name}`, [
-      ['days active', `${row.activeDays} of ${row.availableDays}`],
-      ['sign-ins', String(row.logins)],
-      ['minutes in app', row.minutes.toLocaleString('en-US')],
-      ['last sign-in', row.lastActive ? fmtDate(row.lastActive) : row.lastActiveAll ? fmtDate(row.lastActiveAll) : 'never'],
-    ], row.loginOnly ? 'Signs in but barely does anything' : TIER_BY_ID[row.tier].label);
-  }
-
-  let fr = 0, fc = 0;
-  function moveCursor(r, c, tip) {
-    fr = Math.max(0, Math.min(people.length - 1, r));
-    fc = Math.max(0, Math.min(apps.length - 1, c));
-    const x = labelW + fc * colW, y = headH + fr * (cellH + rowGap);
-    cursor.setAttribute('x', x + GAP / 2 - 2);
-    cursor.setAttribute('y', y - 2);
-    if (tip) {
-      const row = byKey.get(people[fr].person.id + '|' + apps[fc].id);
-      const b = svg.getBoundingClientRect();
-      const sx = b.width / width;
-      if (row) showTip({ left: b.left + (x + colW / 2) * sx - 8, width: 16, bottom: b.top + (y + cellH) * sx }, () => cellTip(row));
-      else hideTip();
-    }
-  }
-  grid.appendChild(cursor);
-  grid.addEventListener('focus', () => moveCursor(fr, fc, true));
-  grid.addEventListener('blur', hideTip);
-  grid.addEventListener('keydown', (e) => {
-    const map = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] };
-    if (!map[e.key]) return;
-    moveCursor(fr + map[e.key][0], fc + map[e.key][1], true);
-    e.preventDefault();
-  });
-  svg.appendChild(grid);
-  host.appendChild(svg);
-
-  const scale = el('div', { class: 'scale' });
-  scale.appendChild(el('span', {}, [
-    el('span', { class: 'sw', style: 'background:var(--seq-0);width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px' }),
-    document.createTextNode(' no days active'),
-  ]));
-  const steps = el('div', { class: 'steps' });
-  for (let k = 1; k <= 7; k++) steps.appendChild(el('i', { style: `background:var(--seq-${k})` }));
-  scale.appendChild(el('span', { class: 'muted', text: 'less' }));
-  scale.appendChild(steps);
-  scale.appendChild(el('span', { class: 'muted', text: 'more' }));
-  host.appendChild(scale);
-  host.appendChild(el('p', { class: 'note-line',
-    text: 'Shade is share of the working days that person had the seat, not raw day count, so recent joiners are judged fairly.' }));
-}
-
-/* =====================================================================
-   10. Tables
+   6. Tables and status badges (status always ships as icon + label)
    ===================================================================== */
 
 const ICONS = {
@@ -1144,30 +746,18 @@ const ICONS = {
     svgEl('path', { d: 'M2.2 6.3 4.9 9 9.8 3.2', fill: 'none', stroke: c, 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
   ]),
 };
-/* Status always ships as icon + label, never colour alone. */
-function badge(kind, label, colorVar) {
-  const c = cssVar(colorVar);
-  return el('span', { class: 'badge', style: 'color:' + c }, [ICONS[kind](c), el('span', { text: label })]);
-}
-function seatBadge(r) {
-  if (r.tier === 'never') return badge('never', 'Never signed in', '--critical');
-  if (r.tier === 'lapsed') return badge('lapsed', 'Gone quiet', '--warning');
-  if (r.loginOnly) return badge('loginonly', 'Signs in, does nothing', '--serious');
-  return badge('ok', TIER_BY_ID[r.tier].label, '--good');
+function badge(st) {
+  const c = cssVar(st.color);
+  return el('span', { class: 'badge', style: 'color:' + c }, [ICONS[st.icon](c), el('span', { text: st.label })]);
 }
 
 function makeTable(columns, rows, opts) {
   opts = opts || {};
   let sortKey = opts.sort || columns[0].key;
-  let dir = opts.dir === undefined ? 1 : opts.dir;   // 1 = descending
-
+  let dir = opts.dir === undefined ? 1 : opts.dir;
   const wrap = el('div', { class: 'tablewrap' + (opts.scroll ? ' scroll-y' : '') });
-  const table = el('table');
-  const thead = el('thead');
-  const tbody = el('tbody');
-  table.appendChild(thead); table.appendChild(tbody);
-  wrap.appendChild(table);
-  if (opts.footer) table.appendChild(opts.footer);
+  const table = el('table'), thead = el('thead'), tbody = el('tbody');
+  table.appendChild(thead); table.appendChild(tbody); wrap.appendChild(table);
 
   function draw() {
     thead.textContent = ''; tbody.textContent = '';
@@ -1176,14 +766,10 @@ function makeTable(columns, rows, opts) {
       const th = el('th', { class: 'sortable' + (c.num ? ' num' : ''), scope: 'col',
         'aria-sort': sortKey === c.key ? (dir === 1 ? 'descending' : 'ascending') : 'none' }, [c.label]);
       if (sortKey === c.key) th.appendChild(el('span', { class: 'arrow', text: dir === 1 ? ' ▼' : ' ▲' }));
-      th.addEventListener('click', () => {
-        if (sortKey === c.key) dir = -dir; else { sortKey = c.key; dir = 1; }
-        draw();
-      });
+      th.addEventListener('click', () => { if (sortKey === c.key) dir = -dir; else { sortKey = c.key; dir = 1; } draw(); });
       tr.appendChild(th);
     });
     thead.appendChild(tr);
-
     const sorted = rows.slice().sort((a, b) => {
       const x = a[sortKey], y = b[sortKey];
       if (x === y) return 0;
@@ -1192,139 +778,220 @@ function makeTable(columns, rows, opts) {
       return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * (dir === 1 ? -1 : 1);
     });
     if (!sorted.length) {
-      tbody.appendChild(el('tr', {}, [el('td', { colspan: String(columns.length), class: 'empty', text: opts.emptyText || 'Nothing here — good news.' })]));
+      tbody.appendChild(el('tr', {}, [el('td', { colspan: String(columns.length), class: 'empty', text: opts.emptyText || 'Nothing here.' })]));
       return;
     }
     sorted.forEach((row) => {
-      const tr2 = el('tr');
+      const r = el('tr');
       columns.forEach((c) => {
         const td = el('td', { class: c.num ? 'num' : null });
         if (c.render) td.appendChild(c.render(row));
         else td.textContent = c.fmt ? c.fmt(row[c.key], row) : (row[c.key] === null || row[c.key] === undefined ? '—' : String(row[c.key]));
-        tr2.appendChild(td);
+        r.appendChild(td);
       });
-      tbody.appendChild(tr2);
+      tbody.appendChild(r);
     });
   }
   draw();
   return wrap;
 }
 
-function renderReclaim(slice, host) {
-  const rows = slice.rows
-    .filter((r) => !r.active || r.loginOnly)
-    .map((r) => ({
-      person: r.person.name, team: r.person.team, app: r.app.name,
-      status: r, statusOrder: r.tier === 'never' ? 3 : r.tier === 'lapsed' ? 2 : 1,
-      last: r.lastActiveAll, cost: r.costMonthly,
-    }));
-  const total = rows.reduce((n, r) => n + r.cost, 0);
-  const foot = el('tfoot', {}, [el('tr', {}, [
-    el('td', { colspan: '5', text: `${plural(rows.length, 'seat')} to review` }),
-    el('td', { class: 'num', text: money(total) + ' / mo' }),
-  ])]);
-  host.appendChild(makeTable(
-    [
-      { key: 'person', label: 'Person' },
-      { key: 'team', label: 'Team' },
-      { key: 'app', label: 'App' },
-      { key: 'statusOrder', label: 'Status', render: (row) => seatBadge(row.status) },
-      { key: 'last', label: 'Last sign-in', fmt: (v) => (v ? `${fmtDate(v)} (${plural(daysAgo(v, slice.endISO), 'day')} ago)` : 'never') },
-      { key: 'cost', label: '$ / mo', num: true, fmt: money },
-    ],
-    rows,
-    { sort: 'cost', dir: 1, scroll: true, footer: foot, emptyText: 'Every seat in this slice is being used.' }
-  ));
-  host.appendChild(el('p', { class: 'note-line',
-    text: 'Reclaiming all of these would save ' + money(total * 12) + ' a year at current list prices.' }));
-}
-
-function renderPeople(slice, host) {
-  const rows = slice.people.map((p) => ({
-    name: p.person.name, team: p.person.team,
-    seats: p.seats, using: p.activeSeats,
-    last: p.lastActive, waste: p.wasteMonthly, flags: p,
-  }));
-  host.appendChild(makeTable(
-    [
-      { key: 'name', label: 'Person' },
-      { key: 'seats', label: 'Seats', num: true },
-      { key: 'using', label: 'Using', num: true },
-      { key: 'last', label: 'Last sign-in', fmt: (v) => (v ? `${plural(daysAgo(v, slice.endISO), 'day')} ago` : 'never') },
-      { key: 'waste', label: 'Idle $ / mo', num: true, fmt: money },
-    ],
-    rows,
-    { sort: 'waste', dir: 1, scroll: true }
-  ));
-}
-
 /* =====================================================================
-   11. Hero + stat tiles
+   7. Panels
    ===================================================================== */
 
-function renderHero(slice) {
-  $('#hero-figure').textContent = slice.totalSeats ? pct(slice.adoption) : '—';
-  $('#hero-note').textContent =
-    `${slice.activeSeats} of ${plural(slice.totalSeats, 'seat')} are genuinely in use`;
-  $('#hero-scope').textContent =
-    `Last ${slice.days || state.days} days · ${fmtDate(slice.startISO)} – ${fmtDate(slice.endISO)}`;
-
-  // Compact 100% stacked summary of every seat, on the same ordinal ramp.
-  const host = $('#hero-spark');
-  host.textContent = '';
-  if (!slice.totalSeats) return;
-  const counts = Object.fromEntries(TIERS.map((t) => [t.id, 0]));
-  slice.rows.forEach((r) => counts[r.tier]++);
-  const W = Math.max(180, host.clientWidth || 260), H = 14;
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img',
-    'aria-label': 'All seats by engagement tier' });
-  const present = TIERS.filter((t) => counts[t.id] > 0);
-  const usable = W - Math.max(0, present.length - 1) * GAP;
-  let cx = 0;
-  present.forEach((t, k) => {
-    const w = (counts[t.id] / slice.totalSeats) * usable;
-    svg.appendChild(svgEl('path', {
-      d: barPath(cx, 0, w, H, k === present.length - 1 ? 4 : 0, 'right'), fill: `var(${t.varName})`,
-    }));
-    cx += w + GAP;
+function renderApps(S, host, width) {
+  const rows = S.apps.slice().sort((a, b) => b.visitors - a.visitors || nameOf(a.app).localeCompare(nameOf(b.app)));
+  if (views.apps === 'table') {
+    return host.appendChild(makeTable([
+      { key: 'name', label: 'App' }, { key: 'launch', label: 'Launch' },
+      { key: 'unlocks', label: 'Unlocks', num: true }, { key: 'visitors', label: 'Visitors', num: true },
+      { key: 'returning', label: 'Came back', num: true }, { key: 'active7', label: 'Active 7 days', num: true },
+      { key: 'uses', label: 'Feature uses', num: true },
+      { key: 'lastSeen', label: 'Last activity', fmt: (v) => ago(v) },
+      { key: 'statusOrder', label: 'Status', render: (r) => badge(r.status) },
+    ], rows.map((a) => ({ ...a, name: nameOf(a.app), launch: launchOf(a.app), statusOrder: a.status.order })),
+    { sort: 'visitors', dir: 1 }));
+  }
+  const labelW = 98, valueW = 130, padR = 4;
+  const plotW = Math.max(100, width - labelW - valueW - padR);
+  const maxV = Math.max(...rows.map((r) => r.visitors), 1);
+  const x = (v) => (v / maxV) * plotW;
+  const h = rows.length * ROW_H + 26;
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group', 'aria-label': 'Visitors and returning visitors per app' });
+  const step = niceStep(maxV);
+  for (let v = 0; v <= maxV; v += step) {
+    svg.appendChild(svgEl('line', { class: 'gridline', x1: labelW + x(v), x2: labelW + x(v), y1: 0, y2: rows.length * ROW_H }));
+    svg.appendChild(svgEl('text', { class: 'tick', x: labelW + x(v), y: rows.length * ROW_H + 16, 'text-anchor': 'middle' }, [txt(v)]));
+  }
+  svg.appendChild(svgEl('line', { class: 'baseline', x1: labelW, x2: labelW, y1: 0, y2: rows.length * ROW_H }));
+  rows.forEach((r, i) => {
+    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
+    const g = svgEl('g');
+    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' }, [txt(nameOf(r.app))]));
+    if (r.visitors > 0) g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.visitors), BAR_H, 4), fill: 'var(--track)' }));
+    if (r.returning > 0) g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.returning), BAR_H, 4), fill: 'var(--series-1)' }));
+    g.appendChild(svgEl('text', { class: 'vlabel', x: labelW + x(r.visitors) + 10, y: y + BAR_H / 2 + 4 },
+      [txt(r.visitors ? `${r.returning}/${r.visitors} came back` : 'no visitors')]));
+    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW + valueW, height: ROW_H, tabindex: '0', role: 'img',
+      'aria-label': `${nameOf(r.app)}: ${r.visitors} visitors, ${r.returning} came back` });
+    wireMark(hit, () => tipBox(nameOf(r.app), [
+      ['unlocks', String(r.unlocks)], ['visitors', String(r.visitors), cssVar('--track')],
+      ['came back', String(r.returning), cssVar('--series-1')], ['active in last 7 days', String(r.active7)],
+      ['feature uses', String(r.uses)], ['last activity', ago(r.lastSeen)],
+    ], `${launchOf(r.app)} bonus · ${r.status.label}`));
+    g.appendChild(hit);
+    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + valueW, height: ROW_H }));
+    svg.appendChild(g);
   });
   host.appendChild(svg);
-  host.appendChild(legendOf(present.map((t) => ({ label: `${t.label} ${counts[t.id]}`, color: `var(${t.varName})` }))));
+  host.appendChild(legendOf([{ label: 'Came back on another day', color: 'var(--series-1)' }, { label: 'All visitors', color: 'var(--track)' }]));
 }
 
-function tile(label, value, note, iconKind, colorVar) {
-  const lab = el('div', { class: 'label' });
-  if (iconKind) lab.appendChild(ICONS[iconKind](cssVar(colorVar)));
-  lab.appendChild(el('span', { text: label }));
-  return el('div', { class: 'tile' }, [
-    lab,
-    el('div', { class: 'value', text: value }),
-    el('div', { class: 'note', text: note }),
-  ]);
+function renderAttention(S, host) {
+  const rows = S.apps.filter((a) => a.status.id !== 'ok').map((a) => ({
+    name: nameOf(a.app), order: a.status.order, status: a.status, visitors: a.visitors, last: a.lastSeen,
+  }));
+  host.appendChild(makeTable([
+    { key: 'name', label: 'App' },
+    { key: 'order', label: 'Status', render: (r) => badge(r.status) },
+    { key: 'visitors', label: 'Visitors', num: true },
+    { key: 'last', label: 'Last activity', fmt: (v) => ago(v) },
+  ], rows, { sort: 'order', dir: -1, emptyText: 'Every app has recent activity and returning visitors.' }));
 }
 
-function renderTiles(slice) {
-  const host = $('#tiles');
-  host.textContent = '';
-  const never = slice.neverSeats, lapsed = slice.lapsedSeats, lo = slice.loginOnlySeats;
-  const cost = (rows) => money(rows.reduce((n, r) => n + r.costMonthly, 0)) + ' / mo';
+function renderTrend(S, host, width) {
+  if (views.trend === 'table') {
+    return host.appendChild(makeTable([
+      { key: 'date', label: 'Date', fmt: fmtDay }, { key: 'value', label: 'Visitors', num: true },
+      { key: 'avg', label: '7-day average', num: true, fmt: (v) => v.toFixed(1) },
+    ], S.trend.map((p, i) => ({ date: p.date, value: p.value, avg: S.smooth[i].value })), { sort: 'date', dir: 1, scroll: true }));
+  }
+  const n = S.trend.length;
+  const padL = 34, padR = 44, padT = 10, padB = 26, plotH = 180;
+  const plotW = Math.max(120, width - padL - padR);
+  const h = plotH + padT + padB;
+  const maxY = Math.max(...S.trend.map((p) => p.value), 1);
+  const niceMax = Math.max(4, Math.ceil(maxY / 4) * 4);
+  const X = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const Y = (v) => padT + plotH - (v / niceMax) * plotH;
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group', 'aria-label': 'Daily visitors across all apps' });
+  for (let k = 0; k <= 4; k++) {
+    const v = (niceMax / 4) * k;
+    svg.appendChild(svgEl('line', { class: 'gridline', x1: padL, x2: padL + plotW, y1: Y(v), y2: Y(v) }));
+    svg.appendChild(svgEl('text', { class: 'tick', x: padL - 8, y: Y(v) + 4, 'text-anchor': 'end' }, [txt(Math.round(v))]));
+  }
+  svg.appendChild(svgEl('line', { class: 'baseline', x1: padL, x2: padL + plotW, y1: Y(0), y2: Y(0) }));
+  const maxTicks = Math.max(2, Math.floor(plotW / 64));          // ~64px per "Sep 14" label
+  const every = Math.max(1, Math.ceil((n - 1) / (maxTicks - 1)));
+  const ticks = [];
+  for (let i = 0; i < n - 1; i += every) ticks.push(i);
+  while (ticks.length && n - 1 - ticks[ticks.length - 1] < every * 0.7) ticks.pop();
+  ticks.push(n - 1);
+  ticks.forEach((i) => svg.appendChild(svgEl('text', { class: 'tick', x: X(i), y: h - 8, 'text-anchor': i === n - 1 ? 'end' : 'middle' }, [txt(fmtDay(S.trend[i].date))])));
+  const line = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.value).toFixed(1)}`).join('');
+  svg.appendChild(svgEl('path', { d: line(S.trend), fill: 'none', stroke: 'var(--demph)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: '0.5' }));
+  svg.appendChild(svgEl('path', { d: line(S.smooth), fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  const lastAvg = S.smooth[n - 1].value;
+  svg.appendChild(svgEl('circle', { cx: X(n - 1), cy: Y(lastAvg), r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface-1)', 'stroke-width': 2 }));
+  svg.appendChild(svgEl('text', { class: 'vlabel', x: X(n - 1) + 9, y: Y(lastAvg) + 4 }, [txt(lastAvg.toFixed(1).replace(/\.0$/, ''))]));
 
-  host.appendChild(tile('People who signed in', `${slice.peopleSignedIn} of ${slice.headcount}`,
-    slice.headcount - slice.peopleSignedIn === 0 ? 'everyone showed up' :
-      `${plural(slice.headcount - slice.peopleSignedIn, 'person', 'people')} never appeared`));
+  const cross = svgEl('line', { class: 'crosshair', y1: padT, y2: padT + plotH });
+  const cursor = svgEl('circle', { r: 4.5, fill: 'var(--series-1)', stroke: 'var(--surface-1)', 'stroke-width': 2, opacity: 0 });
+  svg.appendChild(cross); svg.appendChild(cursor);
+  const surface = svgEl('rect', { class: 'hit', x: padL, y: padT, width: plotW, height: plotH, tabindex: '0', role: 'application',
+    'aria-label': 'Daily visitors; use the arrow keys to step through days' });
+  let fi = n - 1;
+  const place = (i, evt) => {
+    fi = Math.max(0, Math.min(n - 1, i));
+    const p = S.trend[fi];
+    cross.setAttribute('x1', X(fi)); cross.setAttribute('x2', X(fi)); cross.setAttribute('opacity', 1);
+    cursor.setAttribute('cx', X(fi)); cursor.setAttribute('cy', Y(S.smooth[fi].value)); cursor.setAttribute('opacity', 1);
+    const b = svg.getBoundingClientRect();
+    const anchor = evt || { left: b.left + (X(fi) * b.width) / width - 8, width: 16, bottom: b.top + (Y(p.value) * b.width) / width };
+    showTip(anchor, () => tipBox(fmtDay(p.date), [
+      ['visitors', String(p.value), cssVar('--demph')], ['7-day average', S.smooth[fi].value.toFixed(1), cssVar('--series-1')],
+    ], isWeekend(p.date) ? 'Weekend' : null));
+  };
+  const clear = () => { cross.setAttribute('opacity', 0); cursor.setAttribute('opacity', 0); hideTip(); };
+  surface.addEventListener('pointermove', (e) => {
+    const r = svg.getBoundingClientRect();
+    place(Math.round(((((e.clientX - r.left) / r.width) * width - padL) / plotW) * (n - 1)), e);
+  });
+  surface.addEventListener('pointerleave', clear);
+  surface.addEventListener('focus', () => place(fi));
+  surface.addEventListener('blur', clear);
+  surface.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { place(fi + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { place(fi - 1); e.preventDefault(); }
+  });
+  svg.appendChild(surface);
+  host.appendChild(svg);
+  host.appendChild(legendOf([{ label: '7-day average', color: 'var(--series-1)' }, { label: 'Visitors that day', color: 'var(--demph)' }], 'line'));
+}
 
-  host.appendChild(tile('Never signed in', String(never.length), cost(never), 'never', '--critical'));
-  host.appendChild(tile('Gone quiet', String(lapsed.length), cost(lapsed), 'lapsed', '--warning'));
-  host.appendChild(tile('Signs in, does nothing', String(lo.length), cost(lo), 'loginonly', '--serious'));
-  host.appendChild(tile('Idle spend', money(slice.wasteMonthly) + ' / mo',
-    `of ${money(slice.spendMonthly)} / mo committed`));
-  host.appendChild(tile('Active on a typical day', pct(slice.stickiness),
-    `${Math.round(slice.avgDau)} of the ${slice.mau} who showed up at all`));
+function featureRows(S) {
+  const m = new Map();
+  S.apps.filter((a) => state.feature === 'all' || a.app === state.feature)
+    .forEach((a) => a.features.forEach((f) => m.set(f.feature, (m.get(f.feature) || 0) + f.count)));
+  return [...m].map(([feature, count]) => ({ feature, count })).sort((a, b) => b.count - a.count);
+}
+function renderFeatures(S, host, width) {
+  const all = featureRows(S);
+  if (!all.length) return host.appendChild(el('p', { class: 'empty', text: 'No feature use recorded in this range yet.' }));
+  if (views.features === 'table') {
+    return host.appendChild(makeTable([{ key: 'feature', label: 'Tab or button' }, { key: 'count', label: 'Clicks', num: true }], all, { sort: 'count', dir: 1, scroll: true }));
+  }
+  const rows = all.slice(0, 8);
+  const labelW = 170, valueW = 44, padR = 4;
+  const plotW = Math.max(100, width - labelW - valueW - padR);
+  const maxC = Math.max(...rows.map((r) => r.count), 1);
+  const x = (v) => (v / maxC) * plotW;
+  const h = rows.length * ROW_H;
+  const svg = svgEl('svg', { viewBox: `0 0 ${width} ${h}`, height: h, role: 'group', 'aria-label': 'Most used tabs and buttons' });
+  svg.appendChild(svgEl('line', { class: 'baseline', x1: labelW, x2: labelW, y1: 0, y2: h }));
+  rows.forEach((r, i) => {
+    const y = i * ROW_H + (ROW_H - BAR_H) / 2;
+    const g = svgEl('g');
+    const short = r.feature.length > 24 ? r.feature.slice(0, 23) + '…' : r.feature;
+    g.appendChild(svgEl('text', { class: 'axlabel', x: labelW - 10, y: y + BAR_H / 2 + 4, 'text-anchor': 'end' }, [txt(short)]));
+    g.appendChild(svgEl('path', { d: barPath(labelW, y, x(r.count), BAR_H, 4), fill: 'var(--series-1)' }));
+    g.appendChild(svgEl('text', { class: 'vlabel', x: labelW + x(r.count) + 8, y: y + BAR_H / 2 + 4 }, [txt(r.count)]));
+    const hit = svgEl('rect', { class: 'hit', x: labelW, y: i * ROW_H, width: plotW + valueW, height: ROW_H, tabindex: '0', role: 'img', 'aria-label': `${r.feature}: ${r.count} clicks` });
+    wireMark(hit, () => tipBox(r.feature, [['clicks', String(r.count), cssVar('--series-1')]], state.feature === 'all' ? 'All apps combined' : nameOf(state.feature)));
+    g.appendChild(hit);
+    g.appendChild(svgEl('rect', { class: 'focusring', x: labelW - 2, y: i * ROW_H, width: plotW + valueW, height: ROW_H }));
+    svg.appendChild(g);
+  });
+  host.appendChild(svg);
+  if (all.length > 8) host.appendChild(el('p', { class: 'note-line', text: `Showing the top 8 of ${all.length}. The table view lists them all.` }));
 }
 
 /* =====================================================================
-   12. Render orchestration
+   8. Hero, tiles, orchestration
    ===================================================================== */
+
+function tile(label, value, note, icon, color) {
+  const lab = el('div', { class: 'label' });
+  if (icon) lab.appendChild(ICONS[icon](cssVar(color)));
+  lab.appendChild(el('span', { text: label }));
+  return el('div', { class: 'tile' }, [lab, el('div', { class: 'value', text: value }), el('div', { class: 'note', text: note })]);
+}
+
+function renderHero(S) {
+  $('#hero-figure').textContent = String(S.unlocks);
+  $('#hero-note').textContent = S.visitors === 0 && state.mode === 'live'
+    ? 'No events yet. Unlock one of the apps in a browser, then press Refresh.'
+    : `new logins, in ${S.appsActive} of ${SLUGS.length} apps`;
+  $('#hero-scope').textContent = `Last ${state.days} days · ${fmtDay(DATA.since)} – ${fmtDay(DATA.generatedAt.slice(0, 10))}`;
+  const host = $('#tiles'); host.textContent = '';
+  host.appendChild(tile('Visitors', String(S.visitors), 'anonymous browsers, counted per app'));
+  host.appendChild(tile('Came back', String(S.returning), S.visitors ? `${pct(S.returning / S.visitors)} of visitors` : 'no visitors yet'));
+  host.appendChild(tile('Active last 7 days', String(S.active7), 'visitors in the past week'));
+  host.appendChild(tile('Feature uses', String(S.uses), 'tabs and buttons clicked'));
+  host.appendChild(tile('Apps needing a look', String(S.appsFlagged), `of ${SLUGS.length}`, S.appsFlagged ? 'lapsed' : 'ok', S.appsFlagged ? '--warning' : '--good'));
+  host.appendChild(tile('Last activity', S.lastSeen ? ago(S.lastSeen) : 'never', S.lastSeen ? fmtDay(S.lastSeen.slice(0, 10)) : 'no events recorded'));
+}
 
 function section(id, fn) {
   const host = document.getElementById(id);
@@ -1333,112 +1000,133 @@ function section(id, fn) {
   fn(host, width);
 }
 
-let lastSlice = null;
 function render() {
-  const slice = computeSlice();
-  slice.days = state.days;
-  lastSlice = slice;
-  renderHero(slice);
-  renderTiles(slice);
-  section('adoption-body', (h, w) => renderAdoption(slice, h, w));
-  section('mix-body', (h, w) => renderMix(slice, h, w));
-  section('trend-body', (h, w) => renderTrend(slice, h, w));
-  section('heat-body', (h, w) => renderHeat(slice, h, w));
-  section('reclaim-body', (h) => renderReclaim(slice, h));
-  section('people-body', (h) => renderPeople(slice, h));
-
+  if (!DATA) return;
+  const S = summarise();
+  renderHero(S);
+  section('apps-body', (h, w) => renderApps(S, h, w));
+  section('attention-body', (h) => renderAttention(S, h));
+  section('trend-body', (h, w) => renderTrend(S, h, w));
+  section('features-body', (h, w) => renderFeatures(S, h, w));
+  $('#meta-updated').textContent = (state.mode === 'live' ? 'Updated ' : 'Sample data · ') + new Date(DATA.generatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   $('#foot').textContent =
-    'Definitions — a seat is one person’s licence for one app. "Really using it" means active on at least a quarter of ' +
-    'the working days that seat existed in the range. "Signs in, does nothing" means at least two sign-ins averaging under ' +
-    LOGIN_ONLY_MAX_MINUTES + ' minutes and under ' + LOGIN_ONLY_MAX_ACTIONS + ' actions each. Costs are list price per seat per month.';
+    'How to read this — the apps have one shared password and no individual accounts, so a "visitor" is an anonymous browser, not a person. ' +
+    'An unlock is that browser getting the password right for the first time; "came back" means it was seen on more than one day in the range. ' +
+    'The same person on two apps counts once in each. Browsers that send Do Not Track, or that clear their data, are not counted or look new.';
 }
 
 /* =====================================================================
-   13. Controls
+   9. Connection, controls, boot
    ===================================================================== */
 
+const store = {
+  get(kind, k) { try { return (kind === 'local' ? localStorage : sessionStorage).getItem(k); } catch (e) { return null; } },
+  set(kind, k, v) { try { (kind === 'local' ? localStorage : sessionStorage).setItem(k, v); } catch (e) { /* storage blocked */ } },
+  del(kind, k) { try { (kind === 'local' ? localStorage : sessionStorage).removeItem(k); } catch (e) { /* storage blocked */ } },
+};
+
+function setMsg(text, bad) { const m = $('#connect-msg'); m.textContent = text || ''; m.className = 'msg' + (bad ? ' bad' : ''); }
+
+function updateChrome() {
+  const live = state.mode === 'live';
+  $('#mode-pill').textContent = live ? 'Live data' : 'Sample data';
+  $('#connect').hidden = live;
+  $('#live-banner').hidden = !live;
+  if (live) {
+    $('#live-host').textContent = new URL(state.endpoint).host;
+    $('#live-updated').textContent = 'updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+}
+
+async function refresh(showErrors) {
+  const app = $('#app');
+  app.classList.add('is-loading');            // hold the previous render; no skeleton, no layout jump
+  try { await loadData(); render(); updateChrome(); return true; }
+  catch (e) {
+    if (showErrors) { setMsg(e.message, true); $('#connect').hidden = false; }
+    return false;
+  } finally { app.classList.remove('is-loading'); }
+}
+
+async function connect(rawEndpoint, key, remember) {
+  setMsg('Connecting…');
+  let endpoint;
+  try { endpoint = normaliseEndpoint(rawEndpoint); } catch (e) { return setMsg(e.message, true); }
+  if (!key) return setMsg('Enter the admin key.', true);
+  try {
+    const body = await fetchStats(endpoint, key, state.days);
+    Object.assign(state, { mode: 'live', endpoint, key });
+    DATA = body;
+    store.set('local', 'bu_endpoint', endpoint);
+    store.set('session', 'bu_key', key);
+    if (remember) store.set('local', 'bu_key', key); else store.del('local', 'bu_key');
+    $('#adminkey').value = '';
+    setMsg('');
+    render(); updateChrome();
+  } catch (e) { setMsg(e.message, true); }
+}
+
+function disconnect() {
+  Object.assign(state, { mode: 'demo', key: '' });
+  store.del('session', 'bu_key'); store.del('local', 'bu_key');
+  refresh(false);
+}
+
 function wireControls() {
-  $('#range').addEventListener('click', (e) => {
+  $('#range').addEventListener('click', async (e) => {
     const b = e.target.closest('button[data-days]');
     if (!b) return;
     state.days = Number(b.dataset.days);
     $('#range').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    await refresh(true);
+  });
+  document.querySelectorAll('.view-toggle').forEach((seg) => seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-view]');
+    if (!b) return;
+    views[seg.dataset.target] = b.dataset.view;
+    seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     render();
-  });
+  }));
 
-  const teamSel = $('#f-team');
-  IX.teams.forEach((t) => teamSel.appendChild(el('option', { value: t, text: t })));
-  teamSel.addEventListener('change', () => { state.team = teamSel.value; render(); });
+  const sel = $('#f-app');
+  sel.appendChild(el('option', { value: 'all', text: 'All apps' }));
+  SLUGS.forEach((s) => sel.appendChild(el('option', { value: s, text: nameOf(s) })));
+  sel.addEventListener('change', () => { state.feature = sel.value; render(); });
 
-  const appSel = $('#f-app');
-  DATA.apps.forEach((a) => appSel.appendChild(el('option', { value: a.id, text: a.name })));
-  appSel.addEventListener('change', () => { state.app = appSel.value; render(); });
-
-  document.querySelectorAll('.view-toggle').forEach((seg) => {
-    seg.addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-view]');
-      if (!b) return;
-      views[seg.dataset.target] = b.dataset.view;
-      seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      render();
-    });
-  });
+  $('#connect-form').addEventListener('submit', (e) => { e.preventDefault(); connect($('#endpoint').value, $('#adminkey').value, $('#remember').checked); });
+  $('#use-demo').addEventListener('click', () => { setMsg(''); if (state.mode !== 'demo') disconnect(); });
+  $('#refresh').addEventListener('click', () => refresh(true));
+  $('#disconnect').addEventListener('click', disconnect);
 
   const root = document.documentElement;
-  const store = {
-    get() { try { return localStorage.getItem('adoption-theme'); } catch (_) { return null; } },
-    set(v) { try { localStorage.setItem('adoption-theme', v); } catch (_) { /* private mode */ } },
-  };
-  const saved = store.get();
+  const saved = store.get('local', 'bu_theme');
   if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
   $('#theme-toggle').addEventListener('click', () => {
-    const dark = root.getAttribute('data-theme')
-      ? root.getAttribute('data-theme') === 'dark'
-      : matchMedia('(prefers-color-scheme: dark)').matches;
-    const next = dark ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    store.set(next);
-    render();   // tooltip keys and status icons read resolved custom properties
+    const dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    store.set('local', 'bu_theme', dark ? 'light' : 'dark');
+    render();                              // status icons and tooltip keys read resolved colours
   });
-
   let t = null;
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 140); });
 }
 
-/* =====================================================================
-   14. Boot
-   ===================================================================== */
-
-function start(data) {
-  DATA = data;
-  IX = buildIndex(data);
-  $('#meta-apps').textContent =
-    `${plural(data.apps.length, 'app')} across ${plural(data.people.length, 'person', 'people')}`;
-  $('#meta-updated').textContent = 'Data through ' + fmtDate(data.windowEnd);
-  $('#loading').hidden = true;
-  $('#app').hidden = false;
+(async function boot() {
   wireControls();
-  render();
-}
-
-function fail(msg) {
-  const box = $('#loading');
-  box.textContent = '';
-  box.appendChild(el('strong', { text: 'Could not load usage data.' }));
-  box.appendChild(el('p', { class: 'sub', text: msg }));
-  const p = el('p', { class: 'sub' });
-  p.appendChild(document.createTextNode('Serve the folder over HTTP, for example '));
-  p.appendChild(el('code', { text: 'python3 -m http.server 8000' }));
-  p.appendChild(document.createTextNode(', then open http://localhost:8000/'));
-  box.appendChild(p);
-}
-
-(function boot() {
-  if (window.USAGE_DATA) return start(window.USAGE_DATA);
-  fetch('data/usage.json')
-    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(start)
-    .catch((e) => fail(String(e && e.message ? e.message : e)));
+  const endpoint = store.get('local', 'bu_endpoint');
+  const key = store.get('session', 'bu_key') || store.get('local', 'bu_key');
+  if (endpoint) $('#endpoint').value = endpoint;
+  if (endpoint && key) {
+    $('#remember').checked = !!store.get('local', 'bu_key');
+    try {
+      const ep = normaliseEndpoint(endpoint);
+      DATA = await fetchStats(ep, key, state.days);
+      Object.assign(state, { mode: 'live', endpoint: ep, key });
+      render(); updateChrome();
+      return;
+    } catch (e) { setMsg('Could not reconnect: ' + e.message, true); }
+  }
+  await refresh(false);
 })();
 </script>
 </body>

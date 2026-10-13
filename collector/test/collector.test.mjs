@@ -95,6 +95,15 @@ test('/stats needs the admin key', async () => {
   assert.equal((await get('/stats', '', { ...env, ADMIN_KEY: '' })).status, 401);
 });
 
+test('/stats 401 is readable cross-origin so the dashboard can say "wrong key"', async () => {
+  const env = fresh();
+  for (const key of [null, 'wrong']) {
+    const r = await get('/stats', key, env);
+    assert.equal(r.status, 401);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+  }
+});
+
 test('/stats aggregates correctly, including returning visitors across days', async () => {
   const env = fresh();
   const ins = env.DB.raw.prepare('INSERT INTO events (ts, day, app, type, feature, vid) VALUES (?,?,?,?,?,?)');
